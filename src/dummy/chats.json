@@ -1,0 +1,92 @@
+[
+{
+"id": "chat-1",
+"title": "First chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "Hey there!" },
+{ "id": "a1", "role": "assistant", "content": "Hi 👋" }
+]
+},
+{
+"id": "chat-2",
+"title": "Second chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "How's it going?" },
+{ "id": "a1", "role": "assistant", "content": "All good!" }
+]
+},
+{
+"id": "chat-3",
+"title": "Third chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "What's new?" },
+{ "id": "a1", "role": "assistant", "content": "Not much, you?" }
+]
+},
+{
+"id": "chat-4",
+"title": "Fourth chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "Tell me a joke" },
+{ "id": "a1", "role": "assistant", "content": "Why did the chicken cross the road?" }
+]
+},
+{
+"id": "chat-5",
+"title": "Fifth chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "Good morning" },
+{ "id": "a1", "role": "assistant", "content": "Good morning 🌞" }
+]
+},
+{
+"id": "chat-6",
+"title": "Sixth chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "What time is it?" },
+{ "id": "a1", "role": "assistant", "content": "It's bot o'clock." }
+]
+},
+{
+"id": "chat-7",
+"title": "Seventh chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "Do you like pizza?" },
+{ "id": "a1", "role": "assistant", "content": "I love virtual pizza." }
+]
+},
+{
+"id": "chat-8",
+"title": "Eighth chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "Bye for now" },
+{ "id": "a1", "role": "assistant", "content": "See you later!" }
+]
+},
+{
+"id": "chat-9",
+"title": "Ninth chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "Tell me a fact" },
+{ "id": "a1", "role": "assistant", "content": "Honey never spoils." }
+]
+},
+{
+"id": "chat-10",
+"title": "Tenth chat",
+"model": "o3",
+"messages": [
+{ "id": "u1", "role": "user", "content": "Thanks!" },
+{ "id": "a1", "role": "assistant", "content": "You're welcome!" }
+]
+}
+]
