@@ -1,6 +1,7 @@
 "use client";
 
 import ChatWindow from "@/components/Chat/ChatWindow";
+import ChatBar from "@/components/Chat/ChatBar";
 import ChatSelector from "@/components/ChatSelector/ChatSelector";
 import NewChat from "@/components/ChatSelector/NewChat";
 import { ChatProvider } from "@/context/ChatProvider";
@@ -31,7 +32,8 @@ export default function App() {
         </section>
 
         {/* ───────── Right half ───────── */}
-        <section className="h-full w-1/2 border-l border-gray-200">
+        <section className="flex h-full w-1/2 flex-col border-l border-gray-200">
+          <ChatBar />
           <ChatWindow />
         </section>
       </main>

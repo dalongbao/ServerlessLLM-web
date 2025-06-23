@@ -1,3 +1,4 @@
+/* components/Chat/ChatWindow.tsx */
 "use client";
 
 import { useChat } from "@/context/ChatProvider";
@@ -6,20 +7,18 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import MessageBubble from "./MessageBubble";
 import React from "react";
+import { useLayoutEffect } from "react";
 
-/**
- * ChatWindow — right-half chat pane.
- * ------------------------------------------------------
- * • User messages → right‑aligned blue bubble (70 % max‑width).
- * • Assistant messages → plain markdown occupying full width.
- * • Text input expands up to 10 % height, Shift+Enter newline, Tab indent.
- */
 export default function ChatWindow() {
   const { chats, currentChatId, sendMessage } = useChat();
   const chat = chats.find((c) => c.id === currentChatId);
   const [draft, setDraft] = React.useState("");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const endRef = React.useRef<HTMLDivElement>(null);
+  const waiting =
+    !!chat?.messages.find(
+      (m) => m.role === "assistant" && m.content.length === 0,
+    );
 
   /* ----- Helpers ------------------------------------------------ */
   // Auto‑resize the textarea (max 10 % of viewport height)
@@ -28,36 +27,43 @@ export default function ChatWindow() {
     if (!ta) return;
     ta.style.height = "auto";
     const max = window.innerHeight * 0.1;
-    ta.style.height = Math.min(ta.scrollHeight, max) + "px";
+    ta.style.height = `${Math.min(ta.scrollHeight, max)}px`;
     ta.style.overflowY = ta.scrollHeight > max ? "auto" : "hidden";
   };
   React.useEffect(() => autoResize(), [draft]);
 
   // Auto‑scroll when new messages arrive
-  React.useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat?.messages.length]);
+  useLayoutEffect(() => {
+    if (chat) {
+      // block:'end' is the default, behaviour 'auto' = no animation
+      endRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [chat?.id]);
 
   if (!chat) return null;
 
   const send = async () => {
+    if (waiting) return;
     const trimmed = draft.trim();
     if (!trimmed) return;
-    await sendMessage(chat.id, trimmed);
+    sendMessage(chat.id, trimmed).catch(console.error);
+    // We need to manually reset the height after sending
     setDraft("");
-    autoResize();
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    });
   };
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
       return;
     }
     if (e.key === "Tab") {
-      e.preventDefault()
+      e.preventDefault();
       const ta = e.currentTarget;
       const start = ta.selectionStart;
       const end = ta.selectionEnd;
@@ -71,57 +77,70 @@ export default function ChatWindow() {
 
   /* ----- Render ------------------------------------------------- */
   return (
-    <section className="chat-window fixed right-0 top-0 h-screen w-1/2 bg-white font-[Calibri] text-black flex flex-col border-l border-gray-200">
-      {/* Message list */}
-      <div className="messages grow overflow-y-auto px-4 py-4 space-y-4">
+    <section className="flex flex-1 flex-col overflow-hidden bg-white font-[Calibri] text-black">
+      {/* Message list - grows to fill available space and scrolls internally */}
+      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {chat.messages.map((m) =>
           m.role === "assistant" ? (
-            // Assistant: full‑width plain markdown
             <div key={m.id} className="w-full whitespace-pre-wrap">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
-              >
-                {m.content}
-              </ReactMarkdown>
+              {/* model name */}
+              <div className="mb-1 font-bold text-gray-600">
+                {m.model?.split("/").pop() || m.model}
+              </div>
+
+              {/* 👇 NEW: show loader while content is empty */}
+              {m.content ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                >
+                  {m.content}
+                </ReactMarkdown>
+              ) : (
+                <div className="inline-block max-w-[70%] rounded-xl bg-gray-200 px-3 py-1">
+                  <span className="block text-4xl font-bold leading-none text-gray-500 animate-pulse">
+                    …
+                  </span>
+                </div>
+              )}
             </div>
-          ) : (
-            // User: right‑aligned bubble
-            <div key={m.id} className="flex w-full justify-end">
+          ) : (                
+                <div key={m.id} className="flex w-full justify-end">
               <div className="max-w-[70%]">
                 <MessageBubble role="user">{m.content}</MessageBubble>
               </div>
             </div>
-          ),
+          )
         )}
         <div ref={endRef} />
       </div>
-
-      {/* Input bar */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-        className="input-bar sticky bottom-0 left-0 w-full flex items-center gap-2 border-t border-gray-200 bg-white p-3"
-      >
-        <textarea
-          ref={textareaRef}
-          className="flex-1 rounded-lg bg-gray-100 p-2 outline-none resize-none max-h-[10vh] whitespace-pre-wrap"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask anything"
-          rows={1}
-        />
-        <button
-          type="submit"
-          className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40"
-          disabled={!draft.trim()}
+      {/* Input bar - stays at the bottom */}
+      <div className="p-3 flex-shrink-0">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
+          className="flex items-center gap-2 rounded-2xl border bg-gray-50 p-1 pr-2"
         >
-          Send
-        </button>
-      </form>
+          <textarea
+            ref={textareaRef}
+            className="flex-1 resize-none self-center bg-transparent p-2 outline-none max-h-[10vh] whitespace-pre-wrap"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask anything"
+            rows={1}
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-40"
+            disabled={waiting || !draft.trim()}
+          >
+            Send
+          </button>
+        </form>
+      </div>
     </section>
   );
 }
