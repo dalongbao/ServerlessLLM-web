@@ -18,7 +18,11 @@ export default function ChatCardPopup({
   /* close when you click anywhere else */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (anchor.current && !anchor.current.contains(e.target as Node)) onClose();
+      // Close if clicking outside the popup itself.
+      // The anchor check is now more for initial positioning.
+      if (anchor.current && !anchor.current.contains(e.target as Node)) {
+          onClose();
+      }
     };
     window.addEventListener("mousedown", handler);
     return () => window.removeEventListener("mousedown", handler);
@@ -27,7 +31,12 @@ export default function ChatCardPopup({
   /* position just below the 3-dot button */
   const rect = anchor.current?.getBoundingClientRect();
   const style = rect
-    ? { position: "fixed", top: rect.bottom + 4, left: rect.right - 120, zIndex: 1000 }
+    ? { 
+        position: "fixed", 
+        top: rect.bottom + 4, 
+        left: rect.right - 120, 
+        zIndex: 1000 
+      }
     : {};
 
   return (

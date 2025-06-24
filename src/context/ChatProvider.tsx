@@ -1,4 +1,3 @@
-/* context/ChatProvider.tsx */
 "use client";
 
 import React, {
@@ -7,6 +6,7 @@ import React, {
   useState,
   useRef,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import axios from "axios";
@@ -15,7 +15,8 @@ import axios from "axios";
 const LLM_SERVER_URL = "https://chat.serverless-ai.com";
 const STORAGE_KEY = "chat_history_v1";
 const ID_KEY = "current_chat_id_v1";
-const SERVER_WAITTIME = 60; 
+const SERVER_WAITTIME = 8; 
+const POLLING_INTERVAL = 5 * 60 * 1000;
 
 /* ── Local typings ───────────────────────────────────────────── */
 export interface Message {
@@ -28,6 +29,7 @@ export interface Chat {
   id: string;
   title: string;
   model: string;          // “current” model for this thread
+  models: string[];
   messages: Message[];
 }
 export interface Model {
@@ -71,7 +73,6 @@ const toChatFormat = (msgs: Message[]) =>
 
 /* ── Provider ───────────────────────────────────────────────── */
 export function ChatProvider({ children }: { children: ReactNode }) {
-  /* ① Chats --------------------------------------------------- */
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChat] = useState<string>("");
   useEffect(() => {
@@ -95,9 +96,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /* ② Models -------------------------------------------------- */
   const [models, setModels] = useState<Model[]>([]);
-  const getModels = async () => {
+  const getModels = useCallback(async () => {
     try {
       const res = await axios.get(`${LLM_SERVER_URL}/v1/models`);
       // Extract just the id and use it for both id and name
@@ -110,20 +110,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!models.length)
         setModels([{ id: "facebook/opt-1.3b", name: "OPT-1.3B" }]);
     }
-  };
+  }, [models.length]);
 
-  /* Fetch once on mount */
   useEffect(() => {
     getModels().catch(console.error);
   }, []);
 
-  /* ③ Create the first blank chat after we know at least one model */
   useEffect(() => {
     if (chats.length === 0 && models.length) {
       const firstChat: Chat = {
         id: generateId(),
         title: "New chat",
-        model: models[0]?.id || "default-model-id", // Add null check here
+        model: models[0]?.id || "default-model-id", 
+        models: models.map((m) => m.id),
         messages: [],
       };
       setChats([firstChat]);
@@ -133,22 +132,37 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     getModels();                         // immediate fetch
-    const id = setInterval(getModels, 5_000);
+    const id = setInterval(getModels, POLLING_INTERVAL);
     return () => clearInterval(id);
   }, [getModels]);
 
-  /* ④ Helpers ------------------------------------------------- */
   const updateChatModel = (chatId: string, modelId: string) =>
     setChats((list) =>
-      list.map((c) => (c.id === chatId ? { ...c, model: modelId } : c)),
+      list.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              model: modelId,
+            }
+          : c
+      )
     );
 
   const bumpChatModelIfNeeded = (chatId: string, newModel: string) =>
     setChats((list) =>
-      list.map((c) =>
-        c.id === chatId && c.model !== newModel ? { ...c, model: newModel } : c,
-      ),
+      list.map((c) => {
+        if (c.id !== chatId) return c;
+        const updatedModels = c.models.includes(newModel)
+          ? c.models
+          : [...c.models, newModel];
+        return {
+          ...c,
+          model: newModel,
+          models: updatedModels,
+        };
+      }),
     );
+
 
   const appendMessage = (chatId: string, msg: Message) =>
     setChats((list) =>
@@ -166,7 +180,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   /* For fake typing animation */
   const simulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  /* ⑤ Core action: send a message ---------------------------- */
   const sendMessage = async (chatId: string, userContent: string) => {
     const trimmed = userContent.trim();
     if (!trimmed) return;
@@ -174,30 +187,40 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const chat = chats.find((c) => c.id === chatId);
     if (!chat) return;
 
-    // 1️⃣  Add user + placeholder assistant msgs (with chat.model)
     const userMsg: Message = {
       id: generateId(),
       role: "user",
       content: trimmed,
-      model: chat.model,
+      model: chat.model, // Use the model from the current chat
     };
+
+    // This is the key change to fix the stale state bug.
+    const chatPayload = [
+      { role: "system", content: "You are a helpful assistant." },
+      ...toChatFormat(chat.messages), // The history so far
+      { role: "user", content: trimmed },   // The new message
+    ];
+
     const assistantPlaceholder: Message = {
       id: generateId(),
       role: "assistant",
-      content: "",
+      content: "", // Starts empty
       model: chat.model,
     };
-    appendMessage(chatId, userMsg);
-    appendMessage(chatId, assistantPlaceholder);
 
-    // 2️⃣  Build payload
-    const chatPayload = [
-      { role: "system", content: "You are a helpful assistant." },
-      ...toChatFormat(chat.messages),
-      { role: "user", content: trimmed },
-    ];
+    setChats((list) =>
+      list.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              messages: [...c.messages, userMsg, assistantPlaceholder],
+            }
+          : c
+      )
+    );
 
-    // 3️⃣  Call the LLM
+    bumpChatModelIfNeeded(chatId, chat.model);
+
     try {
       if (simulationTimeoutRef.current) clearTimeout(simulationTimeoutRef.current);
 
@@ -205,17 +228,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         `${LLM_SERVER_URL}/v1/chat/completions`,
         {
           model: chat.model,
-          messages: chatPayload,
+          messages: chatPayload, // Use the correctly constructed payload
         },
-        { headers: { "Content-Type": "application/json" }, proxy: false },
+        { headers: { "Content-Type": "application/json" }, proxy: false, timeout: 300000},
       );
 
-      // 4️⃣  Stream reply
       const fullAssistantReply: string = response.data.choices[0].message.content;
       await simulateStreamingResponse(chatId, assistantPlaceholder.id, fullAssistantReply);
 
-      // 5️⃣  Keep chat.model in sync with the last used model
-      bumpChatModelIfNeeded(chatId, chat.model);
     } catch (err) {
       console.error(err);
       // Replace placeholder with error text
@@ -236,7 +256,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  /* ⑥ Typing-animation helper ------------------------------- */
   const simulateStreamingResponse = (
     chatId: string,
     assistantMsgId: string,
@@ -267,7 +286,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       tick();
     });
 
-  /* ⑦ Cleanup ------------------------------------------------ */
   useEffect(
     () => () => {
       if (simulationTimeoutRef.current) clearTimeout(simulationTimeoutRef.current);

@@ -1,7 +1,7 @@
 /* components/Chat/ChatBar.tsx */
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useChat } from "@/context/ChatProvider";
 
 export default function ChatBar() {
@@ -9,14 +9,6 @@ export default function ChatBar() {
     useChat();
 
   const currentChat = chats.find((c) => c.id === currentChatId);
-
-  /* ── Fetch once, then poll every 5 s ────────────────────────── */
-  useEffect(() => {
-    if (models.length === 0) getModels();          // first load
-
-    const id = setInterval(getModels, 5_000);      // poll
-    return () => clearInterval(id);                // cleanup
-  }, [getModels, models.length]);
 
   /* ── UI ─────────────────────────────────────────────────────── */
   return (

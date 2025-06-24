@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { useChat, Chat } from "@/context/ChatProvider";
 import { ChatCardPopup } from "@/components/Chat/ChatCardPopup";
+import ModelTicker from "@/components/ChatSelector/ModelTicker";
 
 /* ───────────────── constants & helpers ───────────────── */
 const CARD_H = 60;
@@ -54,7 +55,10 @@ export default function ChatSelector() {
     setMotionKey((k) => k + 1);
   };
 
-  const getModelForChat = (chat: Chat): string[] => {
+  const getModelsForChat = (chat: Chat): string[] => {
+    if (chat.models && chat.models.length > 0) {
+      return chat.models;
+    }
     return chat.model ? [chat.model] : [];
   };
 
@@ -68,17 +72,6 @@ export default function ChatSelector() {
       if (n > 1) setTimeout(() => step(n - 1), 80);
     };
     step(Math.abs(diff));
-  };
-
-  const renderModelTicker = (models: string[]) => {
-    const text = models.join(", ");
-    return (
-      <div className="h-5 mt-1 flex justify-center w-full overflow-hidden text-xs text-gray-600">
-        <div className="inline-block whitespace-nowrap animate-[scroll_10s_linear_infinite]">
-          {text}
-        </div>
-      </div>
-    );
   };
 
   useEffect(() => {
@@ -145,7 +138,6 @@ export default function ChatSelector() {
     "chat-selector relative h-full w-full flex-1 overflow-hidden select-none px-2 focus:outline-none";
   if (!len) return null;
 
-  // ✅ This is the reusable component for the blue ring
   const BlueRingHighlight = ({ animate }: { animate?: boolean }) => (
     <span
       className={[
@@ -175,7 +167,7 @@ export default function ChatSelector() {
               dirRef.current === 1
                 ? "animate-slot-up-fast"
                 : "animate-slot-down-fast";
-            const models = getModelForChat(chat);
+            const models = getModelsForChat(chat);
 
             return (
               <button
@@ -205,11 +197,7 @@ export default function ChatSelector() {
                   <div className="w-full truncate text-center text-lg font-medium text-black">
                     {chat.title}
                   </div>
-                  {models.length > 0 ? (
-                    renderModelTicker(models)
-                  ) : (
-                    <TickerPlaceholder />
-                  )}
+                  <ModelTicker models={models} />
                 </div>
               </button>
             );
@@ -230,7 +218,7 @@ export default function ChatSelector() {
       {chats.map((chat, idx) => {
         const isSel = idx === selected;
         const isNew = chat.id === newChatId;
-        const models = getModelForChat(chat);
+        const models = getModelsForChat(chat);
         return (
           <button
             key={chat.id}
@@ -263,11 +251,7 @@ export default function ChatSelector() {
               ].join(" ")}
             >
               <div className="w-full truncate font-medium">{chat.title}</div>
-              {models.length > 0 ? (
-                renderModelTicker(models)
-              ) : (
-                <TickerPlaceholder />
-              )}
+              <ModelTicker models={models} /> 
             </div>
           </button>
         );
