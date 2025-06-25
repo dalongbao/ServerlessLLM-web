@@ -15,8 +15,10 @@ import axios from "axios";
 const LLM_SERVER_URL = "https://chat.serverless-ai.com";
 const STORAGE_KEY = "chat_history_v1";
 const ID_KEY = "current_chat_id_v1";
-const SERVER_WAITTIME = 8; 
-const POLLING_INTERVAL = 5 * 60 * 1000;
+const SERVER_WAITTIME = 8;
+const POLLING_INTERVAL = 10000;
+const WORKER_POLLING_INTERVAL=5000;
+const TIMEOUT = 3000000;
 
 /* ── Local typings ───────────────────────────────────────────── */
 export interface Message {
@@ -28,7 +30,7 @@ export interface Message {
 export interface Chat {
   id: string;
   title: string;
-  model: string;          // “current” model for this thread
+  model: string; // “current” model for this thread
   models: string[];
   messages: Message[];
 }
@@ -37,23 +39,48 @@ export interface Model {
   name: string;
 }
 
+// ── 1. Worker Interface Definition ───────────────────────────────
+// This interface precisely models the structure of a single worker
+// object returned by your API.
+export interface Worker {
+  node_id: string;
+  disk_models: object;
+  pinned_memory_pool: object;
+  io_queue: any[];
+  io_queue_estimated_time_left: number;
+  hardware_info: {
+    pcie_bandwidth: number;
+    disk_size: number;
+    disk_bandwidth: number;
+    disk_write_bandwidth: number;
+    disk_read_bandwidth: number;
+    GPUs_info: {
+      [key: string]: {
+        Name: string;
+        Load: string;
+        Free_Memory: string;
+        Used_Memory: string;
+        Total_Memory: string;
+      };
+    };
+  };
+  chunk_size: number;
+  total_memory_pool_chunks: number;
+  used_memory_pool_chunks: number;
+  queued_models: object;
+}
+
 /* ── Context shape ──────────────────────────────────────────── */
 interface ChatCtx {
   chats: Chat[];
   models: Model[];
+  workers: Worker[];
   currentChatId: string;
   setCurrentChat: (id: string) => void;
-
-  /** List → UI dropdown */
   getModels: () => Promise<void>;
-
-  /** Change the model the *next* message will use */
+  getWorkers: () => Promise<void>;
   updateChatModel: (chatId: string, modelId: string) => void;
-
-  /** Send user text, stream reply */
   sendMessage: (chatId: string, userContent: string) => Promise<void>;
-
-  /** Manually add a brand-new chat */
   addChat: (chat: Chat) => void;
   renameChat: (id: string, newTitle: string) => void;
   deleteChat: (id: string) => void;
@@ -101,10 +128,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     try {
       const res = await axios.get(`${LLM_SERVER_URL}/v1/models`);
       // Extract just the id and use it for both id and name
-      setModels(res.data.models.map((model: any) => ({
-        id: model.id,
-        name: model.id.split('/').pop() || model.id // Use the last part of ID as name
-      })));
+      setModels(
+        res.data.models.map((model: any) => ({
+          id: model.id,
+          name: model.id.split("/").pop() || model.id, // Use the last part of ID as name
+        })),
+      );
     } catch (err) {
       console.error("Failed to fetch models:", err);
       if (!models.length)
@@ -112,8 +141,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [models.length]);
 
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  // ── 2. getWorkers Function Implementation ──────────────────────
+  // This function fetches worker data from the specified endpoint
+  // and updates the component's state.
+  const getWorkers = useCallback(async () => {
+    try {
+      const res = await axios.get(`${LLM_SERVER_URL}/v1/workers`);
+      // The API returns an object where keys are worker IDs ("0", "1", ...).
+      // Object.values() extracts the worker objects into an array.
+      const workerArray: Worker[] = Object.values(res.data);
+      setWorkers(workerArray);
+    } catch (err) {
+      console.error("Failed to fetch workers:", err);
+    }
+  }, []); // No dependencies needed as it's self-contained
+
   useEffect(() => {
     getModels().catch(console.error);
+    getWorkers().catch(console.error); // Initial fetch for workers
   }, []);
 
   useEffect(() => {
@@ -121,7 +167,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const firstChat: Chat = {
         id: generateId(),
         title: "New chat",
-        model: models[0]?.id || "default-model-id", 
+        model: models[0]?.id || "default-model-id",
         models: models.map((m) => m.id),
         messages: [],
       };
@@ -131,10 +177,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [chats.length, models]);
 
   useEffect(() => {
-    getModels();                         // immediate fetch
-    const id = setInterval(getModels, POLLING_INTERVAL);
-    return () => clearInterval(id);
-  }, [getModels]);
+    // Set up polling for both models and workers
+    const modelIntervalId = setInterval(getModels, POLLING_INTERVAL);
+    const workerIntervalId = setInterval(getWorkers, WORKER_POLLING_INTERVAL);
+
+    // Cleanup function to clear intervals when the component unmounts
+    return () => {
+      clearInterval(modelIntervalId);
+      clearInterval(workerIntervalId);
+    };
+  }, [getModels, getWorkers]);
 
   const updateChatModel = (chatId: string, modelId: string) =>
     setChats((list) =>
@@ -144,8 +196,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ...c,
               model: modelId,
             }
-          : c
-      )
+          : c,
+      ),
     );
 
   const bumpChatModelIfNeeded = (chatId: string, newModel: string) =>
@@ -163,7 +215,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }),
     );
 
-
   const appendMessage = (chatId: string, msg: Message) =>
     setChats((list) =>
       list.map((c) =>
@@ -171,11 +222,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       ),
     );
 
-  const renameChat = (id: string, title: string) => 
-      setChats(list => list.map(c => (c.id === id ? {...c, title} : c)));
+  const renameChat = (id: string, title: string) =>
+    setChats((list) => list.map((c) => (c.id === id ? { ...c, title } : c)));
 
-  const deleteChat = (id: string) => 
-    setChats(list => list.filter(c => c.id !== id));
+  const deleteChat = (id: string) =>
+    setChats((list) => list.filter((c) => c.id !== id));
 
   /* For fake typing animation */
   const simulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -194,11 +245,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       model: chat.model, // Use the model from the current chat
     };
 
-    // This is the key change to fix the stale state bug.
     const chatPayload = [
       { role: "system", content: "You are a helpful assistant." },
       ...toChatFormat(chat.messages), // The history so far
-      { role: "user", content: trimmed },   // The new message
+      { role: "user", content: trimmed }, // The new message
     ];
 
     const assistantPlaceholder: Message = {
@@ -215,30 +265,38 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ...c,
               messages: [...c.messages, userMsg, assistantPlaceholder],
             }
-          : c
-      )
+          : c,
+      ),
     );
 
     bumpChatModelIfNeeded(chatId, chat.model);
 
     try {
-      if (simulationTimeoutRef.current) clearTimeout(simulationTimeoutRef.current);
+      if (simulationTimeoutRef.current)
+        clearTimeout(simulationTimeoutRef.current);
 
       const response = await axios.post(
         `${LLM_SERVER_URL}/v1/chat/completions`,
         {
           model: chat.model,
-          messages: chatPayload, // Use the correctly constructed payload
+          messages: chatPayload,
         },
-        { headers: { "Content-Type": "application/json" }, proxy: false, timeout: 300000},
+        {
+          headers: { "Content-Type": "application/json" },
+          proxy: false,
+          timeout: TIMEOUT,
+        },
       );
 
-      const fullAssistantReply: string = response.data.choices[0].message.content;
-      await simulateStreamingResponse(chatId, assistantPlaceholder.id, fullAssistantReply);
-
+      const fullAssistantReply: string =
+        response.data.choices[0].message.content;
+      await simulateStreamingResponse(
+        chatId,
+        assistantPlaceholder.id,
+        fullAssistantReply,
+      );
     } catch (err) {
       console.error(err);
-      // Replace placeholder with error text
       setChats((list) =>
         list.map((c) =>
           c.id === chatId
@@ -246,7 +304,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 ...c,
                 messages: c.messages.map((m) =>
                   m.id === assistantPlaceholder.id
-                    ? { ...m, content: "⚠️ Error processing request. Please try again." }
+                    ? {
+                        ...m,
+                        content:
+                          "⚠️ Error processing request. Please try again.",
+                      }
                     : m,
                 ),
               }
@@ -270,7 +332,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ? {
                   ...c,
                   messages: c.messages.map((m) =>
-                    m.id === assistantMsgId ? { ...m, content: botResponse.slice(0, i) } : m,
+                    m.id === assistantMsgId
+                      ? { ...m, content: botResponse.slice(0, i) }
+                      : m,
                   ),
                 }
               : c,
@@ -288,7 +352,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(
     () => () => {
-      if (simulationTimeoutRef.current) clearTimeout(simulationTimeoutRef.current);
+      if (simulationTimeoutRef.current)
+        clearTimeout(simulationTimeoutRef.current);
     },
     [],
   );
@@ -306,9 +371,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const value: ChatCtx = {
     chats,
     models,
+    workers,
     currentChatId,
     setCurrentChat,
     getModels,
+    getWorkers,
     updateChatModel,
     sendMessage,
     addChat: (chat) => {

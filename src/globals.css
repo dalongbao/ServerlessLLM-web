@@ -76,3 +76,75 @@ body {
 .animate-marquee {
   animation: marquee 16s linear infinite;
 }
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Worker Shape Clip-Path --- */
+.worker-shape {
+  /* This custom shape cannot be replicated with standard Tailwind classes */
+  clip-path: polygon(0 15%, 15% 0, 85% 0, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0 85%);
+}
+
+/* --- Specific Magi Layouts for Worker Counts --- */
+/* These complex grid area layouts are kept here for clarity */
+.worker-count-3 {
+  grid-template-areas:
+    ". top ."
+    "left . right";
+}
+.worker-count-3 .worker-shape:nth-child(1) { grid-area: top; }
+.worker-count-3 .worker-shape:nth-child(2) { grid-area: left; }
+.worker-count-3 .worker-shape:nth-child(3) { grid-area: right; }
+
+.worker-count-5 {
+  grid-template-areas:
+    "a . b"
+    ". c ."
+    "d . e";
+}
+.worker-count-5 .worker-shape:nth-child(1) { grid-area: a; }
+.worker-count-5 .worker-shape:nth-child(2) { grid-area: b; }
+.worker-count-5 .worker-shape:nth-child(3) { grid-area: c; }
+.worker-count-5 .worker-shape:nth-child(4) { grid-area: d; }
+.worker-count-5 .worker-shape:nth-child(5) { grid-area: e; }
+
+.worker-count-6 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.worker-count-7 {
+  grid-template-areas:
+    "a b c"
+    "d . e"
+    "f . g";
+}
+.worker-count-7 .worker-shape:nth-child(1) { grid-area: a; }
+.worker-count-7 .worker-shape:nth-child(2) { grid-area: b; }
+.worker-count-7 .worker-shape:nth-child(3) { grid-area: c; }
+.worker-count-7 .worker-shape:nth-child(4) { grid-area: d; }
+.worker-count-7 .worker-shape:nth-child(5) { grid-area: e; }
+.worker-count-7 .worker-shape:nth-child(6) { grid-area: f; }
+.worker-count-7 .worker-shape:nth-child(7) { grid-area: g; }
+
+.worker-count-8 {
+  grid-template-areas:
+    ". a ."
+    "b . c"
+    "d . e"
+    "f g h";
+}
+.worker-count-8 .worker-shape:nth-child(1) { grid-area: a; }
+.worker-count-8 .worker-shape:nth-child(2) { grid-area: b; }
+.worker-count-8 .worker-shape:nth-child(3) { grid-area: c; }
+.worker-count-8 .worker-shape:nth-child(4) { grid-area: d; }
+.worker-count-8 .worker-shape:nth-child(5) { grid-area: e; }
+.worker-count-8 .worker-shape:nth-child(6) { grid-area: f; }
+.worker-count-8 .worker-shape:nth-child(7) { grid-area: g; }
+.worker-count-8 .worker-shape:nth-child(8) { grid-area: h; }
