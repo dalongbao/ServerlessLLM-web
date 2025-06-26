@@ -6,6 +6,7 @@ export interface ActiveQuery {
   startTime: number; 
   model: string;
   queuePosition: number | null;
+  node_id: string | null;
 }
 export interface Chat {
   id: string;
@@ -19,7 +20,9 @@ export interface Chat {
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
+  model?: string;
   content: string;
+  include: boolean;
 }
 export interface Model {
   id: string;
@@ -51,6 +54,7 @@ export interface Worker {
   total_memory_pool_chunks: number;
   used_memory_pool_chunks: number;
   queued_models: object;
+  status: boolean;
 }
 export interface ChatCtx {
   chats: Chat[];
@@ -62,6 +66,7 @@ export interface ChatCtx {
   getWorkers: () => Promise<void>;
   updateChatModel: (chatId: string, modelId: string) => void;
   sendMessage: (chatId: string, userContent: string) => Promise<void>;
+  cancelQuery: (chatId: string, reason) => void;
   addChat: (chat: Chat) => void;
   renameChat: (id: string, newTitle: string) => void;
   deleteChat: (id: string) => void;

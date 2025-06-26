@@ -8,20 +8,18 @@ import rehypeHighlight from "rehype-highlight";
 import MessageBubble from "./MessageBubble";
 import React from "react";
 import { useLayoutEffect } from "react";
+import { Send, Square } from "lucide-react";
 
 export default function ChatWindow() {
-  const { chats, currentChatId, sendMessage } = useChat();
+  const { chats, currentChatId, sendMessage, cancelQuery } = useChat();
   const chat = chats.find((c) => c.id === currentChatId);
   const [draft, setDraft] = React.useState("");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const endRef = React.useRef<HTMLDivElement>(null);
-  const waiting =
-    !!chat?.messages.find(
-      (m) => m.role === "assistant" && m.content.length === 0,
-    );
+
+  const waiting = chat?.isActive ?? false;
 
   /* ----- Helpers ------------------------------------------------ */
-  // Auto‑resize the textarea (max 10 % of viewport height)
   const autoResize = () => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -32,13 +30,13 @@ export default function ChatWindow() {
   };
   React.useEffect(() => autoResize(), [draft]);
 
-  // Auto‑scroll when new messages arrive
   useLayoutEffect(() => {
     if (chat) {
-      // block:'end' is the default, behaviour 'auto' = no animation
+      // Using behavior: "auto" makes the scroll happen instantly,
+      // without any animation, making it feel like it started at the bottom.
       endRef.current?.scrollIntoView({ behavior: "auto" });
     }
-  }, [chat?.id]);
+  }, [chat?.id, chat?.messages.length]); // Dependencies ensure this runs on load and on new messages
 
   if (!chat) return null;
 
@@ -47,7 +45,6 @@ export default function ChatWindow() {
     const trimmed = draft.trim();
     if (!trimmed) return;
     sendMessage(chat.id, trimmed).catch(console.error);
-    // We need to manually reset the height after sending
     setDraft("");
     requestAnimationFrame(() => {
       if (textareaRef.current) {
@@ -56,10 +53,18 @@ export default function ChatWindow() {
     });
   };
 
+  const handleStop = () => {
+    if (waiting) {
+      cancelQuery(chat.id, 'cancelled');
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      send();
+      if (!waiting) {
+        send();
+      }
       return;
     }
     if (e.key === "Tab") {
@@ -83,12 +88,9 @@ export default function ChatWindow() {
         {chat.messages.map((m) =>
           m.role === "assistant" ? (
             <div key={m.id} className="w-full whitespace-pre-wrap">
-              {/* model name */}
               <div className="mb-1 font-bold text-gray-600">
                 {m.model?.split("/").pop() || m.model}
               </div>
-
-              {/* 👇 NEW: show loader while content is empty */}
               {m.content ? (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -105,7 +107,7 @@ export default function ChatWindow() {
               )}
             </div>
           ) : (                
-                <div key={m.id} className="flex w-full justify-end">
+            <div key={m.id} className="flex w-full justify-end">
               <div className="max-w-[70%]">
                 <MessageBubble role="user">{m.content}</MessageBubble>
               </div>
@@ -119,25 +121,35 @@ export default function ChatWindow() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            send();
+            if (!waiting) send();
           }}
-          className="flex items-center gap-2 rounded-2xl border bg-gray-50 p-1 pr-2"
+          className="flex items-end gap-2 rounded-2xl border bg-gray-50 p-1 pr-2"
         >
           <textarea
             ref={textareaRef}
-            className="flex-1 resize-none self-center bg-transparent p-2 outline-none max-h-[10vh] whitespace-pre-wrap"
+            className="flex-1 resize-none self-center bg-transparent p-2 outline-none max-h-[10vh] whitespace-pre-wrap disabled:bg-gray-100"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything"
+            placeholder={waiting ? "Waiting for response..." : "Ask anything"}
             rows={1}
+            disabled={waiting}
           />
           <button
-            type="submit"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-40"
-            disabled={waiting || !draft.trim()}
+            type="button"
+            onClick={waiting ? handleStop : send}
+            className={`flex items-center justify-center rounded-lg px-3 py-2 text-white transition-colors ${
+              waiting
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-40'
+            }`}
+            disabled={!waiting && !draft.trim()}
           >
-            Send
+            {waiting ? (
+              <Square className="h-5 w-5" aria-label="Stop generating"/>
+            ) : (
+              <Send className="h-5 w-5" aria-label="Send message"/>
+            )}
           </button>
         </form>
       </div>

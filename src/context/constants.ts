@@ -7,3 +7,4 @@ export const WORKER_POLLING_INTERVAL = 6_000;
 export const QUERY_STATUS_POLLING_INTERVAL = 500;
 export const TIMEOUT = 3_000_000;
 export const SYSTEM_PROMPT = "You are a helpful model.";
+export const REQUEST_TIMEOUT = 120000;

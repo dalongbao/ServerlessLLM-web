@@ -1,7 +1,8 @@
 // src/components/TopPanel/WorkerPanel.tsx
 "use client";
 import React, { useState, useEffect } from 'react';
-import { useChat, Worker } from '@/context/ChatProvider';
+import { useChat } from '@/context/ChatProvider';
+import { Worker } from '@/context/types';
 import { WorkerInfoPopup } from './WorkerInfoPopup';
 
 // Green for idle GPU worker, Red for others
@@ -81,7 +82,7 @@ export const WorkerPanel: React.FC = () => {
   }
 
   return (
-    <div className="relative flex items-center justify-center w-full min-h-[300px] p-5">
+    <div className="relative flex items-center justify-center w-full min-h-[30vh] p-5">
       {isOrbital ? (
         <div className="relative flex items-center justify-center" style={{ width: containerSize, height: containerSize }}>
           {rings.map((ring, ringIndex) => {

@@ -6,7 +6,8 @@ import React, {
   useState,
   RefObject,
 } from "react";
-import { useChat, Chat } from "@/context/ChatProvider";
+import { useChat } from "@/context/ChatProvider";
+import { Chat } from "@/context/types";
 import { ChatCardPopup } from "@/components/Chat/ChatCardPopup";
 import ModelTicker from "@/components/ChatSelector/ModelTicker";
 
@@ -56,10 +57,7 @@ export default function ChatSelector() {
   };
 
   const getModelsForChat = (chat: Chat): string[] => {
-    if (chat.models && chat.models.length > 0) {
-      return chat.models;
-    }
-    return chat.model ? [chat.model] : [];
+    return chat.models || [];
   };
 
   const animateTo = (target: number) => {
@@ -80,7 +78,6 @@ export default function ChatSelector() {
     return () => clearTimeout(timer);
   }, [selected]);
   
-  const TickerPlaceholder = () => <div className="h-5 mt-1" />;
 
   useEffect(() => {
     if (chats.length > prevLen.current) {
@@ -174,10 +171,10 @@ export default function ChatSelector() {
                 key={`${chat.id}-${o}-${motionKey}`}
                 id={`chat-btn-${idx}`}
                 onClick={() => animateTo(idx)}
-                className="absolute left-1/2 top-1/2 w-[80%] rounded-lg transition-transform duration-300"
+                className="absolute left-1/2 top-1/2 w-[90%] rounded-lg transition-transform duration-300"
                 style={{
                   height: `${CARD_H}px`,
-                  transform: `translate(-50%, calc(-50% + ${translateY}px)) scale(${isCentre ? 1 : 0.9})`,
+                  transform: `translate(-50%, calc(-50% + ${translateY}px)) scale(${isCentre ? 1 : 0.98})`,
                   zIndex: isCentre ? 10 : len - Math.abs(o),
                   opacity: isCentre ? 1 : 0.5,
                 }}
@@ -211,7 +208,7 @@ export default function ChatSelector() {
     <aside
       ref={containerRef}
       tabIndex={0}
-      className={`${base} flex flex-col items-center overflow-y-auto py-2`}
+      className={`${base} flex flex-col items-center overflow-y-auto pb-2`}
       onWheel={onWheel}
       onKeyDown={onKeyDown}
     >
@@ -231,17 +228,14 @@ export default function ChatSelector() {
               if (chat.id === newChatId) setNewChatId(null);
             }}
             style={{ height: `${CARD_H}px` }}
-            // ✅ Added 'relative' to make it a positioning context for the ring
             className={[
-              "relative w-[80%] flex-shrink-0 transition-all duration-200",
+              "relative w-[90%] flex-shrink-0 transition-all duration-200",
               idx > 0 && "mt-2",
               isNew && "animate-wiggle-once",
             ].join(" ")}
           >
-            {/* ✅ Conditionally render the exact same highlight component */}
             {isSel && <BlueRingHighlight />}
 
-            {/* Card Content - Now wrapped in a div to separate it from the highlight */}
             <div
               className={[
                 "w-full h-full rounded-lg text-center text-lg text-black",
