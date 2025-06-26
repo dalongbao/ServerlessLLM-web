@@ -148,3 +148,21 @@ body {
 .worker-count-8 .worker-shape:nth-child(6) { grid-area: f; }
 .worker-count-8 .worker-shape:nth-child(7) { grid-area: g; }
 .worker-count-8 .worker-shape:nth-child(8) { grid-area: h; }
+
+@font-face {
+  font-family: 'DSEG7';
+  src: url('@/fonts/DSEG7Classic-Bold.woff2') format('woff2'), /* Adjust path and format as needed */
+       url('@/fonts/DSEG7Classic-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+}
+
+.font-seven-segment {
+  font-family: 'DSEG7', sans-serif;
+  text-shadow: 0 0 5px currentColor;
+}
+
+/* Custom clip-path for the jagged, retro display border */
+.clip-path-display {
+  clip-path: polygon(0% 12%, 1% 12%, 1% 4%, 2% 4%, 2% 1%, 4% 1%, 4% 0%, 96% 0%, 96% 2%, 98% 2%, 98% 5%, 99% 5%, 99% 15%, 100% 15%, 100% 85%, 99% 85%, 99% 95%, 98% 95%, 98% 98%, 96% 98%, 96% 100%, 4% 100%, 4% 99%, 2% 99%, 2% 96%, 1% 96%, 1% 88%, 0% 88%);
+}

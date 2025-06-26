@@ -2,16 +2,16 @@
 "use client";
 import React from 'react';
 import { WorkerPanel } from '@/components/TopPanel/WorkerPanel';
-import { ChatProvider } from "@/context/ChatProvider";
+
+// No need to import ChatProvider here, it will be higher up in the tree
+// import { ChatProvider } from "@/context/ChatProvider";
 
 export default function TopPanel({ className = "" }: { className?: string }) {
   return (
-    // The ChatProvider makes the `useChat` hook available to all children,
-    // including our WorkerPanel. It will provide the `workers` data.
-    <ChatProvider>
-      <div className={className}>
-        <WorkerPanel />
-      </div>
-    </ChatProvider>
+    // Use flex-col and justify-between to push the status panel to the bottom
+    // h-full ensures this container takes up the full height of its parent
+    <div className={`flex flex-col justify-between h-full ${className}`}>
+      <WorkerPanel />
+    </div>
   );
 }

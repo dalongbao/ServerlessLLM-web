@@ -13,10 +13,15 @@ module.exports = {
           '0%':   { transform: 'translateX(0%)' },
           '100%': { transform: 'translateX(-50%)' },
         },
+        marquee2: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0%)' },
+        },
       },
       animation: {
         // Translate by 50% (one copy width) over 10s so the second copy lines up
         'marquee': 'marquee 10s linear infinite',
+        'marquee2': 'marquee2 25s linear infinite',
       },
     },
   },
