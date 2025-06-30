@@ -45,7 +45,7 @@ export const getQueryStatus = async (queryId: string) => {
       };
     } else {
       return {
-        status: 'INFERENCE',
+        status: 'QUEUED',
         queue_position: null,
       };
     }
