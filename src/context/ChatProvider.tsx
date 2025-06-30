@@ -87,7 +87,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 ...chat.activeQuery,
                 status: result.status,
                 queuePosition: result.queue_position, 
-                node_id: result.node_id,
               },
             };
           }
@@ -239,7 +238,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           { role: "user", content: trimmed },
         ];
 
-        const reply = await postChatCompletion(modelForThisMessage, history);
+        const reply = await postChatCompletion(modelForThisMessage, history, assistantId);
         clearTimeout(timeoutId);
 
         let wasCancelled = false;

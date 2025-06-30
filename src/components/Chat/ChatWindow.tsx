@@ -1,6 +1,5 @@
 /* components/Chat/ChatWindow.tsx */
 "use client";
-
 import { useChat } from "@/context/ChatProvider";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

@@ -1,6 +1,6 @@
 import axios from "axios";
 import { LLM_SERVER_URL, TIMEOUT } from "@/context/constants";
-import { Message, Worker, Model, QueryStatus } from "@/context/types";
+import { Worker, Model } from "@/context/types";
 
 export const getWorkers = async (): Promise<Worker[]> => {
   const res = await axios.get(
@@ -18,32 +18,40 @@ export const getModels = async (): Promise<Model[]> => {
 
 export const postChatCompletion = async (
   model: string,
-  messages: { role: string; content: string }[]
+  messages: { role: string; content: string }[],
+  queryId: string
 ) => {
   const res = await axios.post(
     `${LLM_SERVER_URL}/v1/chat/completions`,
-    { model, messages },
+    { 
+      id: queryId, 
+      model, 
+      messages 
+    },
     { timeout: TIMEOUT, proxy: false }
   );
   return res.data.choices[0].message.content as string;
 };
 
 export const getQueryStatus = async (queryId: string) => {
-  // try {
-  //   const { data } = await axios.get(`${LLM_SERVER_URL}/v1/query/${queryId}`);
-  //   return data;
-  // } catch (error) {
-  //   console.error("Failed to get query status:", error);
-  //   throw new Error("API call for query status failed");
-  // }
-
-  // Mock response for demonstration:
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve({
+  try {
+    const { data } = await axios.get(`${LLM_SERVER_URL}/v1/queue`);
+    const workQueue = data.work_queue;
+    const queueItem = workQueue.find(item => item.query_id === queryId);
+    if (queueItem) {
+      return {
+        status: queueItem.status,
+        queue_position: queueItem.overall_queue_position,
+      };
+    } else {
+      return {
         status: 'INFERENCE',
         queue_position: null,
-      });
-    }, 2500); // Simulate a ~2.5 second queue time before switching to INFERENCE
-  });
-}
+      };
+    }
+  } catch (error) {
+    console.error(`Failed to get query status for ${queryId}:`, error);
+    throw new Error("API call for query status failed");
+  }
+};
+

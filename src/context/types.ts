@@ -6,7 +6,6 @@ export interface ActiveQuery {
   startTime: number; 
   model: string;
   queuePosition: number | null;
-  node_id: string | null;
 }
 export interface Chat {
   id: string;
@@ -33,13 +32,7 @@ export interface Worker {
   disk_models: object;
   pinned_memory_pool: object;
   io_queue: any[];
-  io_queue_estimated_time_left: number;
   hardware_info: {
-    pcie_bandwidth: number;
-    disk_size: number;
-    disk_bandwidth: number;
-    disk_write_bandwidth: number;
-    disk_read_bandwidth: number;
     GPUs_info: {
       [key: string]: {
         Name: string;

@@ -4,14 +4,11 @@ import React, {
   useLayoutEffect,
   useRef,
   useState,
-  RefObject,
 } from "react";
 import { useChat } from "@/context/ChatProvider";
 import { Chat } from "@/context/types";
-import { ChatCardPopup } from "@/components/Chat/ChatCardPopup";
 import ModelTicker from "@/components/ChatSelector/ModelTicker";
 
-/* ───────────────── constants & helpers ───────────────── */
 const CARD_H = 60;
 const GAP = 8; // The space in pixels between cards
 const ACCUM_THRESHOLD = 60; // px of wheel delta before we move
@@ -19,7 +16,6 @@ const mod = (n: number, m: number) => ((n % m) + m) % m;
 
 export default function ChatSelector() {
   const { chats, currentChatId, setCurrentChat } = useChat();
-  /* ───────────────── (Most of your state and hooks are unchanged) ───────────────── */
   const len = chats.length;
   const [selected, setSelected] = useState(
     Math.max(
@@ -110,7 +106,7 @@ export default function ChatSelector() {
       const availableHeight = el.clientHeight
       const rowsMin = Math.max(3, Math.floor(availableHeight/ (CARD_H + GAP)));
       const rows = rowsMin % 2 ? rowsMin : rowsMin -1;
-      setSlotCount(Math.min(rows, chats.length));
+      setSlotCount(Math.min(rows, chats.length || 5));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -133,7 +129,6 @@ export default function ChatSelector() {
   
   const base =
     "chat-selector relative h-full w-full flex-1 overflow-hidden select-none px-2 focus:outline-none";
-  if (!len) return null;
 
   const BlueRingHighlight = ({ animate }: { animate?: boolean }) => (
     <span
@@ -179,10 +174,7 @@ export default function ChatSelector() {
                   opacity: isCentre ? 1 : 0.5,
                 }}
               >
-                {/* Conditionally render the highlight */}
                 {isCentre && <BlueRingHighlight animate={ringAnimate}/>}
-                
-                {/* Card content */}
                 <div
                   className={[
                     slideClass,
@@ -208,7 +200,7 @@ export default function ChatSelector() {
     <aside
       ref={containerRef}
       tabIndex={0}
-      className={`${base} flex flex-col items-center overflow-y-auto pb-2`}
+      className={`${base} flex flex-col items-center overflow-y-auto py-2`}
       onWheel={onWheel}
       onKeyDown={onKeyDown}
     >

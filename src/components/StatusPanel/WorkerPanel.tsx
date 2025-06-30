@@ -1,4 +1,3 @@
-// src/components/TopPanel/WorkerPanel.tsx
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useChat } from '@/context/ChatProvider';
@@ -23,6 +22,26 @@ export const WorkerPanel: React.FC = () => {
   const [activeWorker, setActiveWorker] = useState<Worker | null>(null);
   const [pinnedWorker, setPinnedWorker] = useState<Worker | null>(null);
   const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPinnedWorker(null);
+        setActiveWorker(null);
+        setPopupStyle(prev => ({ ...prev, opacity: 0 }));
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
+  if (!workers || workers.length === 0) {
+    return (
+      <div className="flex items-center justify-center w-full min-h-[30vh] p-5 text-gray-500">
+        No workers connected.
+      </div>
+    );
+  }
 
   const handleMouseEnter = (worker: Worker, e: React.MouseEvent) => {
     if (pinnedWorker) return;
@@ -50,19 +69,6 @@ export const WorkerPanel: React.FC = () => {
       setPopupStyle({ top: `${rect.bottom + 10}px`, left: `${rect.left}px`, opacity: 1 });
     }
   };
-
-  useEffect(() => {
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setPinnedWorker(null);
-        setActiveWorker(null);
-        setPopupStyle(prev => ({ ...prev, opacity: 0 }));
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, []);
-
   const workerCount = workers.length;
   const isOrbital = workerCount > 8;
   const isPaused = !!pinnedWorker;
@@ -141,7 +147,7 @@ export const WorkerPanel: React.FC = () => {
         </div>
       )}
       
-      {activeWorker && <WorkerInfoPopup worker={activeWorker} style={popupStyle} />}
+      {activeWorker && <WorkerInfoPopup nodeId={activeWorker.node_id} style={popupStyle} />}
     </div>
   );
 };

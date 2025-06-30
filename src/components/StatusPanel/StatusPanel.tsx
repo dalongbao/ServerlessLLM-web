@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
-import { WorkerPanel } from '@/components/StatusPanel/WorkerPanel';
+import dynamic from "next/dynamic";
+const WorkerPanel = dynamic(() => import("@/components/StatusPanel/WorkerPanel").then(m => m.WorkerPanel), { ssr: false });
 import { QueryStatusPanel } from '@/components/StatusPanel/QueryStatusPanel';
 
 export default function StatusPanel({ className = "" }: { className?: string }) {
