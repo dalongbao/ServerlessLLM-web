@@ -1,6 +1,6 @@
 import axios from "axios";
 import { LLM_SERVER_URL, TIMEOUT } from "@/context/constants";
-import { Worker, Model, QueueItem, QueueResponse } from "@/context/types";
+import { Worker, Model, QueueResponse } from "@/context/types";
 
 export const getWorkers = async (): Promise<Worker[]> => {
   const res = await axios.get(
