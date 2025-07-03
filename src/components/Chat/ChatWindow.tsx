@@ -32,7 +32,7 @@ export default function ChatWindow() {
     if (chat) {
       endRef.current?.scrollIntoView({ behavior: "auto" });
     }
-  }, [chat?.id, chat?.messages.length]); 
+  }, [chat, chat?.id, chat?.messages.length]); 
 
   if (!chat) return null;
 

@@ -79,7 +79,7 @@ export const WorkerPanel: React.FC = () => {
 
   const rings: Worker[][] = [];
   if (isOrbital) {
-    let workersCopy = [...workers];
+    const workersCopy = [...workers];
     let ringCapacity = 8;
     while (workersCopy.length > 0) {
       rings.push(workersCopy.splice(0, ringCapacity));
