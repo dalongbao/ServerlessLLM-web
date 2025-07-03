@@ -1,3 +1,5 @@
+import React from 'react';
+
 interface DetailDisplayBoxProps {
   labelLines: string[];
   value: React.ReactNode;
