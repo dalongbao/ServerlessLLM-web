@@ -30,6 +30,7 @@ import {
   Message,
   Model,
   Worker,
+  QueryStatus,
 } from "@/context/types";
 import { generateId, toChatFormat } from "@/context/helpers";
 import { usePolling } from "@/context/usePolling";
@@ -77,7 +78,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ...chat,
               activeQuery: {
                 ...chat.activeQuery,
-                status: result.status,
+                status: result.status as QueryStatus,
                 queuePosition: result.queue_position, 
               },
             };
