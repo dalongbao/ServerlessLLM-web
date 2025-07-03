@@ -26,7 +26,8 @@ export const postChatCompletion = async (
     { 
       id: queryId, 
       model, 
-      messages 
+      messages,
+      max_tokens: 200
     },
     { timeout: TIMEOUT, proxy: false }
   );
