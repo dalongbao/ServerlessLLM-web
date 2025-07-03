@@ -1,4 +1,3 @@
-/* components/Chat/ChatBar.tsx */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -6,7 +5,7 @@ import { useChat } from "@/context/ChatProvider";
 import { ChevronDown } from "lucide-react";
 
 export default function ChatBar() {
-  const { chats, models, currentChatId, updateChatModel } = useChat();
+  const { chats, models, currentChatId, updateChatModel} = useChat();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const currentChat = chats.find((c) => c.id === currentChatId);

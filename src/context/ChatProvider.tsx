@@ -34,7 +34,6 @@ import {
 import { generateId, toChatFormat } from "@/context/helpers";
 import { usePolling } from "@/context/usePolling";
 
-/* ── Context plumbing ───────────────────────────────────────── */
 const ChatContext = createContext<ChatCtx | null>(null);
 export const useChat = () => {
   const ctx = useContext(ChatContext);
@@ -42,21 +41,16 @@ export const useChat = () => {
   return ctx;
 };
 
-/* ── Provider ───────────────────────────────────────────────── */
-export function ChatProvider({ children }: { children: ReactNode }) {
-  /* Load persisted data */
+export function ChatProvider({ children }: { children: ReactNode }) { 
   const { chats: restored, id: restoredId } = restoreChats();
   const [chats, setChats] = useState<Chat[]>(restored);
   const [currentChatId, setCurrentChat] = useState<string>(
     restoredId ?? ""
   );
 
-  /* Remote state */
   const [models, setModels] = useState<Model[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
 
-  /* Polling */
-  // Models polling
   usePolling(async () => {
     const raw = await getModels();
     setModels(
@@ -67,10 +61,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     );
   }, POLLING_INTERVAL);
 
-  // Workers polling
   usePolling(() => getWorkers().then(setWorkers), WORKER_POLLING_INTERVAL);
 
-  // Query status polling
   usePolling(async () => {
     const currentChat = chats.find(c => c.id === currentChatId);
     if (!currentChat?.activeQuery) {
@@ -106,7 +98,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, QUERY_STATUS_POLLING_INTERVAL);
 
-  /* Init first chat if none */
   useEffect(() => {
     if (chats.length === 0 && models.length > 0) {
       const first: Chat = {
@@ -123,13 +114,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [chats.length, models]);
 
-  /* Persist on change */
   useEffect(
     () => persistChats(chats, currentChatId),
     [chats, currentChatId]
   );
 
-  /* Fake-typing helper */
   const simulateStreamingResponse = (
     chatId: string,
     assistantMsgId: string,
@@ -170,7 +159,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ? "⚠️ Request timed out. The server is taking too long to respond. Please try again."
               : "🚫 Request cancelled by user.";
 
-          // Ensure we are only updating the empty assistant message
           if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content === '') {
             return {
               ...chat,
@@ -189,7 +177,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  /* ── sendMessage ────────────────────────────────────────── */
   const sendMessage = useCallback(
     async (chatId: string, userContent: string) => {
       const trimmed = userContent.trim();
@@ -205,9 +192,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setChats((prevChats) =>
         prevChats.map((c) => {
           if (c.id === chatId) {
-            const initialQuery: ActiveQuery = { id: assistantId, status: "QUEUED", startTime: Date.now(), model: modelForThisMessage, queuePosition: null, node_id: null};
-            const userMsg: Message = { id: userId, role: "user", content: trimmed, model: modelForThisMessage, include: true};
-            const assistantMsg: Message = { id: assistantId, role: "assistant", content: "", model: modelForThisMessage, include: true};
+            const initialQuery: ActiveQuery = { 
+              id: assistantId, 
+              status: "QUEUED", 
+              startTime: Date.now(), 
+              model: modelForThisMessage, 
+              queuePosition: null, 
+            };
+            const userMsg: Message = { 
+              id: userId, 
+              role: "user", 
+              content: trimmed, 
+              model: modelForThisMessage, 
+              include: true
+            };
+            const assistantMsg: Message = { 
+              id: assistantId, 
+              role: "assistant", 
+              content: "", 
+              model: modelForThisMessage, 
+              include: true
+            };
             return {
               ...c,
               messages: [...c.messages, userMsg, assistantMsg],

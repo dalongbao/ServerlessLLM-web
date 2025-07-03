@@ -1,4 +1,3 @@
-/* components/Chat/ChatWindow.tsx */
 "use client";
 import { useChat } from "@/context/ChatProvider";
 import ReactMarkdown from "react-markdown";
@@ -17,8 +16,8 @@ export default function ChatWindow() {
   const endRef = React.useRef<HTMLDivElement>(null);
 
   const waiting = chat?.isActive ?? false;
+  const isModelSelected = !!chat?.model;
 
-  /* ----- Helpers ------------------------------------------------ */
   const autoResize = () => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -31,16 +30,14 @@ export default function ChatWindow() {
 
   useLayoutEffect(() => {
     if (chat) {
-      // Using behavior: "auto" makes the scroll happen instantly,
-      // without any animation, making it feel like it started at the bottom.
       endRef.current?.scrollIntoView({ behavior: "auto" });
     }
-  }, [chat?.id, chat?.messages.length]); // Dependencies ensure this runs on load and on new messages
+  }, [chat?.id, chat?.messages.length]); 
 
   if (!chat) return null;
 
   const send = async () => {
-    if (waiting) return;
+    if (waiting || !isModelSelected) return;
     const trimmed = draft.trim();
     if (!trimmed) return;
     sendMessage(chat.id, trimmed).catch(console.error);
@@ -79,10 +76,8 @@ export default function ChatWindow() {
     }
   };
 
-  /* ----- Render ------------------------------------------------- */
   return (
     <section className="flex flex-1 flex-col overflow-hidden bg-white font-[Calibri] text-black">
-      {/* Message list - grows to fill available space and scrolls internally */}
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {chat.messages.map((m) =>
           m.role === "assistant" ? (
