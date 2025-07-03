@@ -31,7 +31,7 @@ export interface Worker {
   node_id: string;
   disk_models: object;
   pinned_memory_pool: object;
-  io_queue: any[];
+  io_queue: string[];
   hardware_info: {
     GPUs_info: {
       [key: string]: {
