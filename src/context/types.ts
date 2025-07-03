@@ -59,8 +59,16 @@ export interface ChatCtx {
   getWorkers: () => Promise<void>;
   updateChatModel: (chatId: string, modelId: string) => void;
   sendMessage: (chatId: string, userContent: string) => Promise<void>;
-  cancelQuery: (chatId: string, reason) => void;
+  cancelQuery: (chatId: string, reason: string) => void;
   addChat: (chat: Chat) => void;
   renameChat: (id: string, newTitle: string) => void;
   deleteChat: (id: string) => void;
+}
+export interface QueueItem {
+  query_id: string;
+  status: string;
+  overall_queue_position: number;
+}
+export interface QueueResponse {
+  work_queue: QueueItem[];
 }

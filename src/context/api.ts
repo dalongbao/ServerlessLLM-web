@@ -1,6 +1,6 @@
 import axios from "axios";
 import { LLM_SERVER_URL, TIMEOUT } from "@/context/constants";
-import { Worker, Model } from "@/context/types";
+import { Worker, Model, QueueItem, QueueResponse } from "@/context/types";
 
 export const getWorkers = async (): Promise<Worker[]> => {
   const res = await axios.get(
@@ -36,7 +36,7 @@ export const postChatCompletion = async (
 
 export const getQueryStatus = async (queryId: string) => {
   try {
-    const { data } = await axios.get(`${LLM_SERVER_URL}/v1/queue`);
+    const { data } = await axios.get<QueueResponse>(`${LLM_SERVER_URL}/v1/queue`);
     const workQueue = data.work_queue;
     const queueItem = workQueue.find(item => item.query_id === queryId);
     if (queueItem) {
