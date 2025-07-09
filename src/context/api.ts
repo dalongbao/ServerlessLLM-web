@@ -1,5 +1,5 @@
 import axios from "axios";
-import { LLM_SERVER_URL, TIMEOUT } from "@/context/constants";
+import { LLM_SERVER_URL, TIMEOUT, MAX_TOKENS } from "@/context/constants";
 import { Worker, Model, QueueResponse } from "@/context/types";
 
 export const getWorkers = async (): Promise<Worker[]> => {
@@ -27,7 +27,7 @@ export const postChatCompletion = async (
       id: queryId, 
       model, 
       messages,
-      max_tokens: 200
+      max_tokens: MAX_TOKENS 
     },
     { timeout: TIMEOUT, proxy: false }
   );
