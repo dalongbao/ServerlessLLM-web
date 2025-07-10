@@ -9,8 +9,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="h-screen">{children}</body>
+      <body className="h-screen">
+        {children}
+        <div id="portal-container"></div>
+      </body>
     </html>
   );
 }
-

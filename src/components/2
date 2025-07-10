@@ -1,0 +1,88 @@
+"use client";
+
+import React, { useState, useRef, useEffect, MouseEvent } from 'react';
+import Portal from './Portal'; // <-- Import the Portal component
+
+// SVG Icons remain the same...
+const ThreeDotsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>;
+const RenameIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
+const DeleteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+
+interface ChatOptionsProps {
+  onRename: () => void;
+  onDelete: () => void;
+}
+
+export default function ChatOptions({ onRename, onDelete }: ChatOptionsProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null); // Ref for the button itself
+  const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
+
+  const handleToggle = (e: MouseEvent) => {
+    e.stopPropagation();
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      // Position the popup below the button, aligning to the right edge
+      setPopupPosition({
+        top: rect.bottom + window.scrollY + 8, // 8px margin
+        left: rect.right + window.scrollX - 192, // 192 is w-48
+      });
+    }
+    setIsOpen(prev => !prev);
+  };
+
+  const handleRenameClick = (e: MouseEvent) => {
+    e.stopPropagation();
+    onRename();
+    setIsOpen(false);
+  };
+
+  const handleDeleteClick = (e: MouseEvent) => {
+    e.stopPropagation();
+    onDelete();
+    setIsOpen(false);
+  };
+
+  // Close popup if clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = () => setIsOpen(false);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    // The button remains in its original position
+    <div className="absolute top-1/2 right-1 -translate-y-1/2 z-20">
+      <button 
+        ref={buttonRef}
+        onClick={handleToggle} 
+        className="p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-500/10 transition-opacity opacity-0 group-hover:opacity-100"
+      >
+        <ThreeDotsIcon />
+      </button>
+
+      {/* The popup is now rendered inside the Portal */}
+      {isOpen && (
+        <Portal>
+          {/* Use `fixed` positioning and a high z-index. The position is set via state. */}
+          <div 
+            style={{ top: `${popupPosition.top}px`, left: `${popupPosition.left}px` }}
+            className="fixed w-48 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-50"
+            // Stop propagation to prevent the outside click handler from firing immediately
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button onClick={handleRenameClick} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+              <RenameIcon />
+              <span className="ml-3">Rename</span>
+            </button>
+            <button onClick={handleDeleteClick} className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+              <DeleteIcon />
+              <span className="ml-3">Delete chat</span>
+            </button>
+          </div>
+        </Portal>
+      )}
+    </div>
+  );
+}
