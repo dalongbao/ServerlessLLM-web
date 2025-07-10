@@ -294,6 +294,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [chats, cancelQuery] 
   );  
 
+  const renameChat = (id, newTitle) => {
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat.id === id ? { ...chat, title: newTitle } : chat
+      )
+    );
+  };
+
+  const deleteChat = (id) => {
+    setChats((prevChats) => {
+      const chatToDeleteIndex = prevChats.findIndex((chat) => chat.id === id);
+      const newChats = prevChats.filter((chat) => chat.id !== id);
+
+      if (currentChatId === id) {
+        if (newChats.length > 0) {
+          const newCurrentChatIndex = Math.max(0, chatToDeleteIndex - 1);
+          setCurrentChat(newChats[newCurrentChatIndex].id);
+        } else {
+          setCurrentChat("");
+        }
+      }
+
+      return newChats;
+    });
+  };
+
   const value: ChatCtx = {
     chats,
     models,
