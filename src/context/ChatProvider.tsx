@@ -295,7 +295,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [chats, cancelQuery] 
   );  
 
-  const renameChat = (id, newTitle) => {
+  const renameChat = (id: string, newTitle: string) => {
     setChats((prevChats) =>
       prevChats.map((chat) =>
         chat.id === id ? { ...chat, title: newTitle } : chat
@@ -303,7 +303,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const deleteChat = (id) => {
+  const deleteChat = (id: string) => {
     setChats((prevChats) => {
       const chatToDeleteIndex = prevChats.findIndex((chat) => chat.id === id);
       const newChats = prevChats.filter((chat) => chat.id !== id);
@@ -341,12 +341,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setChats((xs) => [...xs, chat]);
       setCurrentChat(chat.id);
     },
-    renameChat: (id, title) =>
-      setChats((xs) =>
-        xs.map((c) => (c.id === id ? { ...c, title } : c))
-      ),
-    deleteChat: (id) =>
-      setChats((xs) => xs.filter((c) => c.id !== id)),
+    deleteChat, 
+    renameChat,
   };
 
   return (

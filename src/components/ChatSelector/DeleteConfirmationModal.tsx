@@ -24,7 +24,8 @@ export default function DeleteConfirmationModal({ isOpen, chat, onClose, onConfi
       >
         <h2 className="text-lg font-semibold text-gray-900">Delete Chat?</h2>
         <p className="mt-2 text-sm text-gray-600">
-          Are you sure you want to delete "<strong>{chat.title}</strong>"? This action cannot be undone.
+          Are you sure you want to delete&nbsp;
+          &ldquo;<strong>{chat.title}</strong>&rdquo;? This action cannot be undone.
         </p>
         <div className="mt-6 flex justify-end space-x-3">
           <button 
