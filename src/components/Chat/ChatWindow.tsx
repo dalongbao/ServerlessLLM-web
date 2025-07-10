@@ -9,7 +9,7 @@ import { useLayoutEffect } from "react";
 import { Send, Square } from "lucide-react";
 
 export default function ChatWindow() {
-  const { chats, currentChatId, sendMessage, cancelQuery } = useChat();
+  const { chats, currentChatId, sendMessage, requestChatTitle, cancelQuery } = useChat();
   const chat = chats.find((c) => c.id === currentChatId);
   const [draft, setDraft] = React.useState("");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -41,6 +41,7 @@ export default function ChatWindow() {
     const trimmed = draft.trim();
     if (!trimmed) return;
     sendMessage(chat.id, trimmed).catch(console.error);
+    requestChatTitle(chat.id, trimmed).catch(console.error);
     setDraft("");
     requestAnimationFrame(() => {
       if (textareaRef.current) {
