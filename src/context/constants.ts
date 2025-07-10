@@ -9,3 +9,6 @@ export const TIMEOUT = 3_000_000;
 export const SYSTEM_PROMPT = "You are a helpful model.";
 export const REQUEST_TIMEOUT = 120000;
 export const MAX_TOKENS = 500;
+export const CARD_H = 60;
+export const GAP = 8;
+export const ACCUM_THRESHOLD = 60;

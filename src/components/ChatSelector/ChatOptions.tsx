@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, MouseEvent } from 'react';
-import Portal from '@/components/Portal'; 
+import Portal from '@/components/Portal';
 
 const ThreeDotsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>;
 const RenameIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
@@ -18,9 +18,8 @@ export default function ChatOptions({ onRename, onDelete }: ChatOptionsProps) {
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
 
   const handleToggleMouseDown = (e: MouseEvent) => {
-    e.stopPropagation(); 
-
-    if (buttonRef.current && !isOpen) { 
+    e.stopPropagation();
+    if (buttonRef.current && !isOpen) {
       const rect = buttonRef.current.getBoundingClientRect();
       setPopupPosition({
         top: rect.bottom + window.scrollY + 8,
@@ -30,17 +29,8 @@ export default function ChatOptions({ onRename, onDelete }: ChatOptionsProps) {
     setIsOpen(prev => !prev);
   };
 
-  const handleRenameClick = (e: MouseEvent) => {
-    e.stopPropagation();
-    onRename();
-    setIsOpen(false);
-  };
-
-  const handleDeleteClick = (e: MouseEvent) => {
-    e.stopPropagation();
-    onDelete();
-    setIsOpen(false);
-  };
+  const handleRenameClick = (e: MouseEvent) => { e.stopPropagation(); onRename(); setIsOpen(false); };
+  const handleDeleteClick = (e: MouseEvent) => { e.stopPropagation(); onDelete(); setIsOpen(false); };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -50,10 +40,14 @@ export default function ChatOptions({ onRename, onDelete }: ChatOptionsProps) {
   }, [isOpen]);
 
   return (
-    <div className="absolute top-1/2 right-1 -translate-y-1/2 z-20">
-      <button 
+    <div
+      className="absolute top-1/2 right-1 -translate-y-1/2 z-20"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
         ref={buttonRef}
-        onMouseDown={handleToggleMouseDown} 
+        onMouseDown={handleToggleMouseDown}
         className="p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-500/10 transition-opacity opacity-0 group-hover:opacity-100"
       >
         <ThreeDotsIcon />
@@ -61,10 +55,11 @@ export default function ChatOptions({ onRename, onDelete }: ChatOptionsProps) {
 
       {isOpen && (
         <Portal>
-          <div 
+          <div
             style={{ top: `${popupPosition.top}px`, left: `${popupPosition.left}px` }}
             className="fixed w-48 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-50"
             onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <button onClick={handleRenameClick} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
               <RenameIcon />
