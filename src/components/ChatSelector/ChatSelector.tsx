@@ -1,247 +1,132 @@
 "use client";
-import React, {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import { useChat } from "@/context/ChatProvider";
-import { Chat } from "@/context/types";
-import ModelTicker from "@/components/ChatSelector/ModelTicker";
 
-const CARD_H = 60;
-const GAP = 8; // The space in pixels between cards
-const ACCUM_THRESHOLD = 60; // px of wheel delta before we move
+import React, { useRef, useEffect, useState } from "react";
+import { useChat } from "@/context/ChatProvider";
+import { useChatSelector } from "./useChatSelector"; 
+import ModelTicker from "./ModelTicker";
+
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 
-export default function ChatSelector() {
-  const { chats, currentChatId, setCurrentChat } = useChat();
-  const len = chats.length;
-  const [selected, setSelected] = useState(
-    Math.max(
-      0,
-      chats.findIndex((c) => c.id === currentChatId),
-    ),
-  );
-  const [motionKey, setMotionKey] = useState(0);
-  const dirRef = useRef<1 | -1>(1);
-  const containerRef = useRef<HTMLElement | null>(null);
-  const [slotCount, setSlotCount] = useState(5);
+const BlueRingHighlight = ({ animate }: { animate?: boolean }) => (
+  <span
+    className={[
+      "pointer-events-none absolute inset-0 -m-1 rounded-lg ring-2 ring-blue-500 z-50",
+      animate ? "animate-wiggle-once" : "",
+    ].join(" ")}
+  />
+);
+
+const ChatCarousel = ({
+  hook,
+  animateTo,
+}: {
+  hook: ReturnType<typeof useChatSelector>;
+  animateTo: (target: number) => void;
+}) => {
+  const { chats, len, selected, motionKey, dirRef, slotCount, CARD_H, GAP } = hook;
   const half = Math.floor(slotCount / 2);
   const OFFSETS = Array.from({ length: slotCount }, (_, i) => i - half);
-  const [newChatId, setNewChatId] = useState<string | null>(null);
-  const prevLen = useRef(chats.length);
-  const accumRef = useRef(0);
   const [ringAnimate, setRingAnimate] = useState(false);
 
   useEffect(() => {
-    const i = chats.findIndex((c) => c.id === currentChatId);
-    if (i !== -1 && i !== selected) setSelected(i);
-  }, [currentChatId, chats, selected]);
-
-  const isCarousel = len > slotCount;
-
-  const move = (dir: 1 | -1) => {
-    const next = isCarousel
-      ? mod(selected + dir, len)
-      : Math.min(Math.max(selected + dir, 0), len - 1);
-    if (next === selected) return;
-    dirRef.current = dir;
-    setSelected(next);
-    setCurrentChat(chats[next].id);
-    setMotionKey((k) => k + 1);
-  };
-
-  const getModelsForChat = (chat: Chat): string[] => {
-    return chat.models || [];
-  };
-
-  const animateTo = (target: number) => {
-    if (target === selected) return;
-    let diff = mod(target - selected, len);
-    if (diff > len / 2) diff -= len;
-    const dir = diff > 0 ? 1 : -1;
-    const step = (n: number) => {
-      move(dir);
-      if (n > 1) setTimeout(() => step(n - 1), 80);
-    };
-    step(Math.abs(diff));
-  };
-
-  useEffect(() => {
     setRingAnimate(true);
-    const timer = setTimeout(() => setRingAnimate(false), 300); // Duration of your animation
+    const timer = setTimeout(() => setRingAnimate(false), 300); 
     return () => clearTimeout(timer);
   }, [selected]);
-  
 
-  useEffect(() => {
-    if (chats.length > prevLen.current) {
-      setNewChatId(chats[chats.length - 1].id);
-    }
-    prevLen.current = chats.length;
-  }, [chats]);
-  
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    accumRef.current += e.deltaY;
-    if (accumRef.current >= ACCUM_THRESHOLD) {
-      move(1);
-      accumRef.current = 0;
-    } else if (accumRef.current <= -ACCUM_THRESHOLD) {
-      move(-1);
-      accumRef.current = 0;
-    }
-  };
-  
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") move(1);
-    if (e.key === "ArrowUp") move(-1);
-  };
-  
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    const el = containerRef.current;
-    const measure = () => {
-      const availableHeight = el.clientHeight
-      const rowsMin = Math.max(3, Math.floor(availableHeight/ (CARD_H + GAP)));
-      const rows = rowsMin % 2 ? rowsMin : rowsMin -1;
-      setSlotCount(Math.min(rows, chats.length || 5));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [chats.length]);
-  
-  useEffect(() => {
-    const sel = document.getElementById(`chat-btn-${selected}`);
-    if (!sel) return;
-    sel.scrollIntoView({
-      block: "center",
-      behavior: "smooth",
-    });
-  }, [selected]);
-  
-  const base =
-    "chat-selector relative h-full w-full flex-1 overflow-hidden select-none px-2 focus:outline-none";
-
-  const BlueRingHighlight = ({ animate }: { animate?: boolean }) => (
-    <span
-      className={[
-        "pointer-events-none absolute inset-0 -m-1 rounded-lg ring-2 ring-blue-500 z-50",
-        animate ? "animate-wiggle-once" : "",
-      ].join(" ")}
-    />
-  );
-
-  /* ───────────── Carousel (≥ 5) ───────────── */
-  if (isCarousel) {
-    return (
-      <aside
-        ref={containerRef}
-        tabIndex={0}
-        className={`${base} flex flex-col items-center justify-center`}
-        onWheel={onWheel}
-        onKeyDown={onKeyDown}
-      >
-        <div className="relative flex w-full h-full items-center justify-center isolate">
-          {OFFSETS.map((o) => {
-            const idx = mod(selected + o, len);
-            const chat = chats[idx];
-            const translateY = o * (CARD_H + GAP);
-            const isCentre = o === 0;
-            const slideClass =
-              dirRef.current === 1
-                ? "animate-slot-up-fast"
-                : "animate-slot-down-fast";
-            const models = getModelsForChat(chat);
-
-            return (
-              <button
-                key={`${chat.id}-${o}-${motionKey}`}
-                id={`chat-btn-${idx}`}
-                onClick={() => animateTo(idx)}
-                className="absolute left-1/2 top-1/2 w-[90%] rounded-lg transition-transform duration-300"
-                style={{
-                  height: `${CARD_H}px`,
-                  transform: `translate(-50%, calc(-50% + ${translateY}px)) scale(${isCentre ? 1 : 0.98})`,
-                  zIndex: isCentre ? 10 : len - Math.abs(o),
-                  opacity: isCentre ? 1 : 0.5,
-                }}
-              >
-                {isCentre && <BlueRingHighlight animate={ringAnimate}/>}
-                <div
-                  className={[
-                    slideClass,
-                    "relative z-0 w-full h-full rounded-lg bg-gray-50",
-                    "flex flex-col justify-center items-center p-2",
-                    isCentre ? "shadow-md" : "shadow-sm",
-                  ].join(" ")}
-                >
-                  <div className="w-full truncate text-center text-lg font-medium text-black">
-                    {chat.title}
-                  </div>
-                  <ModelTicker models={models} />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </aside>
-    );
-  }
-  /* ───────────── Static (< 5) ───────────── */
   return (
-    <aside
-      ref={containerRef}
-      tabIndex={0}
-      className={`${base} flex flex-col items-center overflow-y-auto py-2`}
-      onWheel={onWheel}
-      onKeyDown={onKeyDown}
-    >
-      {chats.map((chat, idx) => {
-        const isSel = idx === selected;
-        const isNew = chat.id === newChatId;
-        const models = getModelsForChat(chat);
+    <div className="relative flex w-full h-full items-center justify-center isolate">
+      {OFFSETS.map((o) => {
+        const idx = mod(selected + o, len);
+        const chat = chats[idx];
+        if (!chat) return null; 
+        const isCentre = o === 0;
+        const translateY = o * (CARD_H + GAP);
+        const slideClass = dirRef.current === 1 ? "animate-slot-up-fast" : "animate-slot-down-fast";
+
         return (
           <button
-            key={chat.id}
-            id={`chat-btn-${idx}`}
-            onClick={() => {
-              setSelected(idx);
-              setCurrentChat(chat.id);
+            key={`${chat.id}-${o}-${motionKey}`}
+            onClick={() => animateTo(idx)}
+            className="absolute left-1/2 top-1/2 w-[90%] rounded-lg transition-transform duration-300"
+            style={{
+              height: `${CARD_H}px`,
+              transform: `translate(-50%, calc(-50% + ${translateY}px)) scale(${isCentre ? 1 : 0.98})`,
+              zIndex: isCentre ? 10 : len - Math.abs(o),
+              opacity: isCentre ? 1 : 0.5,
             }}
-            onAnimationEnd={() => {
-              if (chat.id === newChatId) setNewChatId(null);
-            }}
-            style={{ height: `${CARD_H}px` }}
-            className={[
-              "relative w-[90%] flex-shrink-0 transition-all duration-200",
-              idx > 0 && "mt-2",
-              isNew && "animate-wiggle-once",
-            ].join(" ")}
           >
-            {isSel && <BlueRingHighlight />}
-
+            {isCentre && <BlueRingHighlight animate={ringAnimate} />}
             <div
-              className={[
-                "w-full h-full rounded-lg text-center text-lg text-black",
-                "bg-gray-50 hover:bg-gray-100",
-                "flex flex-col justify-center items-center p-2",
-                isSel ? "shadow-md" : "shadow-sm",
-              ].join(" ")}
+              className={`relative z-0 w-full h-full rounded-lg bg-gray-50 flex flex-col justify-center items-center p-2 ${slideClass} ${isCentre ? "shadow-md" : "shadow-sm"}`}
             >
-              <div className="w-full truncate font-medium">{chat.title}</div>
-              <ModelTicker models={models} /> 
+              <div className="w-full truncate text-center text-lg font-medium text-black">
+                {chat.title}
+              </div>
+              <ModelTicker models={chat.models || []} />
             </div>
           </button>
         );
       })}
+    </div>
+  );
+};
+
+const ChatList = ({ hook }: { hook: ReturnType<typeof useChatSelector> }) => {
+  const { chats, selected, newChatId, setNewChatId, CARD_H } = hook;
+  const { setCurrentChat } = useChat();
+
+  return (
+    <>
+      {chats.map((chat, idx) => {
+        const isSel = idx === selected;
+        const isNew = chat.id === newChatId;
+        return (
+          <button
+            key={chat.id}
+            onClick={() => setCurrentChat(chat.id)}
+            onAnimationEnd={() => {
+              if (isNew) setNewChatId(null);
+            }}
+            style={{ height: `${CARD_H}px` }}
+            className={`relative w-[90%] flex-shrink-0 transition-all duration-200 ${idx > 0 && "mt-2"} ${isNew && "animate-wiggle-once"}`}
+          >
+            {isSel && <BlueRingHighlight />}
+            <div className={`w-full h-full rounded-lg text-center text-lg text-black bg-gray-50 hover:bg-gray-100 flex flex-col justify-center items-center p-2 ${isSel ? "shadow-md" : "shadow-sm"}`}>
+              <div className="w-full truncate font-medium">{chat.title}</div>
+              <ModelTicker models={chat.models || []} />
+            </div>
+          </button>
+        );
+      })}
+    </>
+  );
+};
+
+// The main, now much cleaner, component
+export default function ChatSelector() {
+  const containerRef = useRef<HTMLElement | null>(null);
+  const hook = useChatSelector(containerRef);
+  const { onWheel, onKeyDown, isCarousel, animateTo } = hook;
+
+  const baseClasses = "relative h-full w-full flex-1 select-none px-2 focus:outline-none";
+  const layoutClasses = isCarousel
+    ? "flex flex-col items-center justify-center overflow-hidden"
+    : "flex flex-col items-center overflow-y-auto py-2";
+
+  return (
+    <aside
+      ref={containerRef}
+      tabIndex={0}
+      className={`${baseClasses} ${layoutClasses}`}
+      onWheel={onWheel}
+      onKeyDown={onKeyDown}
+    >
+      {isCarousel ? (
+        <ChatCarousel hook={hook} animateTo={animateTo} />
+      ) : (
+        <ChatList hook={hook} />
+      )}
     </aside>
   );
 }
