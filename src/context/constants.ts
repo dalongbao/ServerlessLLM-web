@@ -7,5 +7,7 @@ export const WORKER_POLLING_INTERVAL = 1_000;
 export const QUERY_STATUS_POLLING_INTERVAL = 500;
 export const TIMEOUT = 3_000_000;
 export const SYSTEM_PROMPT = "You are a helpful model.";
+export const TITLE_SYSTEM_PROMPT = `You are an expert at creating short, concise chat titles. Based on the user's message, generate a title that is no more than 5 words long. Do not use quotation marks in your response. The title should be in the same language as the user's message.`;
 export const REQUEST_TIMEOUT = 120000;
 export const MAX_TOKENS = 500;
+export const MAX_TITLE_TOKENS = 10;

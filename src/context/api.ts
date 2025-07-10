@@ -1,5 +1,5 @@
 import axios from "axios";
-import { LLM_SERVER_URL, TIMEOUT, MAX_TOKENS } from "@/context/constants";
+import { LLM_SERVER_URL, TIMEOUT } from "@/context/constants";
 import { Worker, Model, QueueResponse } from "@/context/types";
 
 export const getWorkers = async (): Promise<Worker[]> => {
@@ -19,7 +19,8 @@ export const getModels = async (): Promise<Model[]> => {
 export const postChatCompletion = async (
   model: string,
   messages: { role: string; content: string }[],
-  queryId: string
+  queryId: string,
+  max_tokens: number
 ) => {
   const res = await axios.post(
     `${LLM_SERVER_URL}/v1/chat/completions`,
@@ -27,7 +28,7 @@ export const postChatCompletion = async (
       id: queryId, 
       model, 
       messages,
-      max_tokens: MAX_TOKENS 
+      max_tokens: max_tokens
     },
     { timeout: TIMEOUT, proxy: false }
   );

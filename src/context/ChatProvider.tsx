@@ -16,10 +16,13 @@ import {
 } from "@/context/api";
 import {
   POLLING_INTERVAL,
+  MAX_TOKENS,
+  MAX_TITLE_TOKENS,
   WORKER_POLLING_INTERVAL,
   QUERY_STATUS_POLLING_INTERVAL,
   SERVER_WAITTIME,
   SYSTEM_PROMPT,
+  TITLE_SYSTEM_PROMPT,
   REQUEST_TIMEOUT,
 } from "@/context/constants";
 import { restoreChats, persistChats } from "@/context/storage";
@@ -244,7 +247,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           { role: "user", content: trimmed },
         ];
 
-        const reply = await postChatCompletion(modelForThisMessage, history, assistantId);
+        const reply = await postChatCompletion(modelForThisMessage, history, assistantId, MAX_TOKENS);
         clearTimeout(timeoutId);
 
         let wasCancelled = false;
@@ -295,6 +298,52 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [chats, cancelQuery] 
   );  
 
+  const requestChatTitle = useCallback(
+    async (chatId: string, userMessage: string) => {
+      const trimmedMessage = userMessage.trim();
+      if (!trimmedMessage) return;
+
+      const chat = chats.find((c) => c.id === chatId);
+      if (!chat) {
+        console.error("requestChatTitle: Chat not found.");
+        return;
+      }
+
+      const model = chat.model;
+      const id = generateId();
+      const timeoutId = setTimeout(() => {
+        console.warn(`Request for chat title creation ${chatId} timed out.`);
+      }, REQUEST_TIMEOUT);
+
+      try {
+        const request = [
+          { role: "system", content: TITLE_SYSTEM_PROMPT },
+          { role: "user", content: trimmedMessage },
+        ];
+
+        const rawTitle = await postChatCompletion(model, request, id, MAX_TITLE_TOKENS);
+        clearTimeout(timeoutId);
+
+        const newTitle = rawTitle.trim().replace(/"/g, '');
+
+        setChats((prevChats) =>
+          prevChats.map((c) => {
+            if (c.id === chatId) {
+              return {
+                ...c,
+                title: newTitle,
+              };
+            }
+            return c;
+          })
+        );
+      } catch (e) {
+        console.error("Failed to generate chat title:", e);
+      }
+    },
+    [chats, cancelQuery]
+  );
+
   const value: ChatCtx = {
     chats,
     models,
@@ -311,6 +360,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         )
       ),
     sendMessage,
+    requestChatTitle,
     addChat: (chat) => {
       setChats((xs) => [...xs, chat]);
       setCurrentChat(chat.id);

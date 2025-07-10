@@ -59,6 +59,7 @@ export interface ChatCtx {
   getWorkers: () => Promise<void>;
   updateChatModel: (chatId: string, modelId: string) => void;
   sendMessage: (chatId: string, userContent: string) => Promise<void>;
+  requestChatTitle: (chatId: string, userContent: string) => Promise<void>;
   cancelQuery: (chatId: string, reason: "cancelled" | "timeout") => void;
   addChat: (chat: Chat) => void;
   renameChat: (id: string, newTitle: string) => void;
