@@ -5,21 +5,10 @@ import { Plus } from "lucide-react";
 import React from "react";
 
 export default function NewChat() {
-  const { addChat, chats, models } = useChat();
+  const { setCurrentChat } = useChat();
 
   const handleClick = () => {
-    const mostRecentModel =
-      chats[chats.length - 1]?.model || models[0]?.id || "facebook/opt-1.3b";
-
-    addChat({
-      id: crypto.randomUUID(),
-      title: "New chat",
-      model: mostRecentModel, 
-      models: [],
-      messages: [],
-      isActive: false, 
-      activeQuery: null,
-    });
+    setCurrentChat("");
   };
 
   return (
