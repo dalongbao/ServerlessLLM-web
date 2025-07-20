@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import MessageBubble from "./MessageBubble";
+import NewChatPage from "./NewChatPage";
 import React from "react";
 import { useLayoutEffect } from "react";
 import { Send, Square } from "lucide-react";
@@ -34,7 +35,7 @@ export default function ChatWindow() {
     }
   }, [chat, chat?.id, chat?.messages.length]); 
 
-  if (!chat) return null;
+  if (!chat) return <NewChatPage />;
 
   const send = async () => {
     if (waiting || !isModelSelected) return;
