@@ -7,11 +7,16 @@ import { MenuBar } from "@/components/MenuBar/MenuBar";
 const ChatSelector = dynamic(() => import('@/components/ChatSelector/ChatSelector'), { ssr: false });
 import NewChat from "@/components/ChatSelector/NewChat";
 import { ChatProvider } from "@/context/ChatProvider";
-import  StatusPanel  from "@/components/StatusPanel/StatusPanel"; 
+import  StatusPanel  from "@/components/StatusPanel/StatusPanel";
+import HealthPopup from "@/components/StatusPanel/HealthPopup";
+import { ToastProvider } from "@/context/ToastProvider";
+import { useChat } from "@/context/ChatProvider"; 
 
-export default function App() {
+function AppContent() {
+  const { healthStatus } = useChat();
+  
   return (
-    <ChatProvider>
+    <>
       <main className="flex h-screen w-screen overflow-hidden bg-white">
         <section className="flex w-3/8 flex-col">
           <div className="flex-0.5">
@@ -32,6 +37,17 @@ export default function App() {
           <ChatWindow />
         </section>
       </main>
-    </ChatProvider>
+      <HealthPopup healthStatus={healthStatus} />
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <ChatProvider>
+        <AppContent />
+      </ChatProvider>
+    </ToastProvider>
   );
 }

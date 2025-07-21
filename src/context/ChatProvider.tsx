@@ -13,11 +13,15 @@ import {
   getWorkers,
   postChatCompletion,
   getQueryStatus,
+  getServerHealth,
 } from "@/context/api";
+import { NetworkError } from "@/context/errorTypes";
+import { useToastContext } from "@/context/ToastProvider";
 import {
   POLLING_INTERVAL,
   WORKER_POLLING_INTERVAL,
   QUERY_STATUS_POLLING_INTERVAL,
+  HEALTH_POLLING_INTERVAL,
   SERVER_WAITTIME,
   SYSTEM_PROMPT,
   REQUEST_TIMEOUT,
@@ -31,6 +35,7 @@ import {
   Model,
   Worker,
   QueryStatus,
+  HealthStatus,
 } from "@/context/types";
 import { generateId, toChatFormat } from "@/context/helpers";
 import { usePolling } from "@/context/usePolling";
@@ -48,36 +53,107 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [currentChatId, setCurrentChat] = useState<string>(
     restoredId ?? ""
   );
+  const { showConnectionError, showError, removeToast } = useToastContext();
+  const [connectionErrorToastId, setConnectionErrorToastId] = useState<string | null>(null);
 
   const [models, setModels] = useState<Model[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [healthStatus, setHealthStatus] = useState<HealthStatus>({
+    status: 'unknown',
+    message: 'Checking server health...',
+    timestamp: Date.now()
+  });
+  const [processingChats, setProcessingChats] = useState<Set<string>>(new Set());
 
   usePolling(async () => {
-    const raw = await getModels();
-    setModels(
-      raw.map((m) => ({
-        id: m.id,
-        name: m.id.split("/").pop() || m.id,
-      }))
-    );
+    try {
+      const raw = await getModels();
+      setModels(
+        raw.map((m) => ({
+          id: m.id,
+          name: m.id.split("/").pop() || m.id,
+        }))
+      );
+    } catch (error: unknown) {
+      if (error instanceof Error && 'type' in error) {
+        const networkError = error as NetworkError;
+        console.warn('Failed to fetch models:', networkError.userMessage);
+        
+        if (networkError.type === 'CONNECTION_FAILED' && !connectionErrorToastId) {
+          const toastId = showConnectionError(
+            'Connection Failed', 
+            'Unable to connect to the server. Please check your internet connection.'
+          );
+          setConnectionErrorToastId(toastId);
+        }
+        // Don't clear existing models on network errors, just log the warning
+      } else {
+        console.error('Unexpected error fetching models:', error);
+      }
+    }
   }, POLLING_INTERVAL);
 
-  usePolling(() => getWorkers().then(setWorkers), WORKER_POLLING_INTERVAL);
+  usePolling(async () => {
+    try {
+      const workers = await getWorkers();
+      setWorkers(workers);
+    } catch (error: unknown) {
+      if (error instanceof Error && 'type' in error) {
+        const networkError = error as NetworkError;
+        console.warn('Failed to fetch workers:', networkError.userMessage);
+        // Don't clear existing workers on network errors, just log the warning
+      } else {
+        console.error('Unexpected error fetching workers:', error);
+      }
+    }
+  }, WORKER_POLLING_INTERVAL);
 
   usePolling(async () => {
-    const currentChat = chats.find(c => c.id === currentChatId);
-    if (!currentChat?.activeQuery) {
+    try {
+      const health = await getServerHealth();
+      setHealthStatus(health);
+      
+      // Clear connection error toast if server is back online
+      if (connectionErrorToastId && (health.status === 'healthy' || health.status === 'degraded')) {
+        removeToast(connectionErrorToastId);
+        setConnectionErrorToastId(null);
+      }
+    } catch (error: unknown) {
+      console.error('Health check failed:', error);
+    }
+  }, HEALTH_POLLING_INTERVAL);
+
+  usePolling(async () => {
+    // Capture current values at start of polling cycle
+    const capturedCurrentChatId = currentChatId;
+    let currentChat: Chat | undefined;
+    let queryId: string | undefined;
+    
+    // Get fresh state
+    setChats(prevChats => {
+      currentChat = prevChats.find(c => c.id === capturedCurrentChatId);
+      if (currentChat?.activeQuery) {
+        queryId = currentChat.activeQuery.id;
+      }
+      return prevChats; // No change, just reading state
+    });
+    
+    if (!currentChat?.activeQuery || !queryId) {
       return; 
     }
+    
     try {
-      const result = await getQueryStatus(currentChat.activeQuery.id);
+      const result = await getQueryStatus(queryId);
       setChats(prevChats =>
         prevChats.map(chat => {
-          if (chat.id === currentChatId && chat.activeQuery) {
+          // Use fresh state to validate the update is still relevant
+          if (chat.id === capturedCurrentChatId && chat.activeQuery?.id === queryId && chat.activeQuery) {
             return {
               ...chat,
               activeQuery: {
-                ...chat.activeQuery,
+                id: chat.activeQuery.id,
+                startTime: chat.activeQuery.startTime,
+                model: chat.activeQuery.model,
                 status: result.status as QueryStatus,
                 queuePosition: result.queue_position, 
               },
@@ -86,16 +162,50 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           return chat;
         })
       );
-    } catch (error) {
-      console.error(`Failed to poll status for chat ${currentChat.id}:`, error);
-      setChats(prevChats =>
-        prevChats.map(chat => {
-          if (chat.id === currentChatId) {
-            return { ...chat, isActive: false, activeQuery: null }; 
+    } catch (error: unknown) {
+      if (error instanceof Error && 'type' in error) {
+        const networkError = error as NetworkError;
+        console.warn(`Failed to poll status for chat ${capturedCurrentChatId}:`, networkError.userMessage);
+        
+        // Only cancel the query if it's not a temporary network issue
+        if (networkError.type === 'CONNECTION_FAILED') {
+          if (!connectionErrorToastId) {
+            const toastId = showConnectionError(
+              'Connection Lost',
+              'Lost connection while processing your request. Please check your internet connection.'
+            );
+            setConnectionErrorToastId(toastId);
           }
-          return chat;
-        })
-      );
+          
+          setChats(prevChats =>
+            prevChats.map(chat => {
+              if (chat.id === capturedCurrentChatId && chat.activeQuery?.id === queryId) {
+                return { 
+                  ...chat, 
+                  isActive: false, 
+                  activeQuery: null,
+                  messages: chat.messages.map(m =>
+                    m.role === 'assistant' && m.content === ''
+                      ? { ...m, content: '⚠️ Connection lost while processing. Please try again.', include: false }
+                      : m
+                  )
+                }; 
+              }
+              return chat;
+            })
+          );
+        }
+      } else {
+        console.error(`Failed to poll status for chat ${capturedCurrentChatId}:`, error);
+        setChats(prevChats =>
+          prevChats.map(chat => {
+            if (chat.id === capturedCurrentChatId && chat.activeQuery?.id === queryId) {
+              return { ...chat, isActive: false, activeQuery: null }; 
+            }
+            return chat;
+          })
+        );
+      }
     }
   }, QUERY_STATUS_POLLING_INTERVAL);
 
@@ -127,9 +237,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   ) =>
     new Promise<void>((resolve) => {
       let i = 0;
+      let timeoutId: NodeJS.Timeout | null = null;
+      let cancelled = false;
+      
       const tick = () => {
-        setChats((prevChats) =>
-          prevChats.map((c) =>
+        // Check if chat still exists and is active before updating
+        setChats((prevChats) => {
+          const chat = prevChats.find(c => c.id === chatId);
+          if (!chat || !chat.isActive || cancelled) {
+            // Chat was cancelled or doesn't exist anymore
+            cancelled = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            resolve();
+            return prevChats;
+          }
+          
+          return prevChats.map((c) =>
             c.id === chatId
               ? {
                   ...c,
@@ -140,13 +263,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                   ),
                 }
               : c
-          )
-        );
-        if (i < text.length) {
+          );
+        });
+        
+        if (!cancelled && i < text.length) {
           i++;
-          setTimeout(tick, SERVER_WAITTIME);
-        } else resolve();
+          timeoutId = setTimeout(tick, SERVER_WAITTIME);
+        } else if (!cancelled) {
+          resolve();
+        }
       };
+      
       tick();
     });
 
@@ -179,16 +306,49 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendMessage = useCallback(
-    async (chatId: string, userContent: string) => {
+    async (chatId: string, userContent: string, retryCount = 0) => {
       const trimmed = userContent.trim();
       if (!trimmed) return;
+      
+      // Check server health before sending
+      if (healthStatus.status === 'unhealthy') {
+        console.warn('Cannot send message: Server is unhealthy');
+        throw new Error(`Server is ${healthStatus.status}: ${healthStatus.message}`);
+      }
+      
+      // Check if this chat is already processing a message
+      if (processingChats.has(chatId)) {
+        console.warn('Message already being processed for this chat');
+        throw new Error('Another message is already being processed for this chat');
+      }
+      
+      // Mark chat as processing
+      setProcessingChats(prev => new Set(prev.add(chatId)));
       
       const userId = generateId();
       const assistantId = generateId();
 
-      const chatForModel = chats.find(c => c.id === chatId);
-      if (!chatForModel) return;
-      const modelForThisMessage = chatForModel.model;
+      let modelForThisMessage: string | undefined;
+      let chatExists = false;
+      
+      // Get fresh chat state and model
+      setChats(prevChats => {
+        const chatForModel = prevChats.find(c => c.id === chatId);
+        if (chatForModel) {
+          modelForThisMessage = chatForModel.model;
+          chatExists = true;
+        }
+        return prevChats; // No change, just reading state
+      });
+      
+      if (!chatExists || !modelForThisMessage) {
+        setProcessingChats(prev => {
+          const next = new Set(prev);
+          next.delete(chatId);
+          return next;
+        });
+        throw new Error("Chat not found");
+      }
 
       setChats((prevChats) =>
         prevChats.map((c) => {
@@ -197,28 +357,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               id: assistantId, 
               status: "QUEUED", 
               startTime: Date.now(), 
-              model: modelForThisMessage, 
+              model: modelForThisMessage!, 
               queuePosition: null, 
             };
             const userMsg: Message = { 
               id: userId, 
               role: "user", 
               content: trimmed, 
-              model: modelForThisMessage, 
+              model: modelForThisMessage!, 
               include: true
             };
             const assistantMsg: Message = { 
               id: assistantId, 
               role: "assistant", 
               content: "", 
-              model: modelForThisMessage, 
+              model: modelForThisMessage!, 
               include: true
             };
             return {
               ...c,
               messages: [...c.messages, userMsg, assistantMsg],
               isActive: true,
-              models: [...new Set([...(c.models || []), modelForThisMessage])],
+              models: [...new Set([...(c.models || []), modelForThisMessage!])],
               activeQuery: initialQuery,
             };
           }
@@ -232,11 +392,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }, REQUEST_TIMEOUT);
 
       try {
-        const currentChat = chats.find(c => c.id === chatId);
-        if (!currentChat) throw new Error("Chat not found after being set.");
-        const includedMessages = currentChat.messages.filter(
-          (message) => message.include !== false
-        );
+        let includedMessages: Message[] = [];
+        let currentChatFound = false;
+        
+        // Get fresh chat messages
+        setChats(prevChats => {
+          const currentChat = prevChats.find(c => c.id === chatId);
+          if (currentChat) {
+            includedMessages = currentChat.messages.filter(
+              (message) => message.include !== false
+            );
+            currentChatFound = true;
+          }
+          return prevChats; // No change, just reading state
+        });
+        
+        if (!currentChatFound) {
+          throw new Error("Chat not found after being set.");
+        }
 
         const history = [
           { role: "system", content: SYSTEM_PROMPT },
@@ -244,7 +417,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           { role: "user", content: trimmed },
         ];
 
-        const reply = await postChatCompletion(modelForThisMessage, history, assistantId);
+        const reply = await postChatCompletion(modelForThisMessage!, history, assistantId);
         clearTimeout(timeoutId);
 
         let wasCancelled = false;
@@ -262,9 +435,53 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
         await simulateStreamingResponse(chatId, assistantId, reply);
 
-      } catch (e) {
+      } catch (e: unknown) {
         clearTimeout(timeoutId);
-        console.error("Failed to get chat completion:", e);
+        
+        let errorMessage = "⚠️ Error processing request. Please try again.";
+        
+        if (e instanceof Error && 'type' in e) {
+          const networkError = e as NetworkError;
+          console.error("Failed to get chat completion:", networkError.userMessage);
+          
+          switch (networkError.type) {
+            case 'CONNECTION_FAILED':
+              // Retry connection failures up to 2 times with exponential backoff
+              if (retryCount < 2) {
+                console.log(`Retrying message send (attempt ${retryCount + 1}/3) after connection failure...`);
+                const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s
+                setTimeout(() => {
+                  sendMessage(chatId, userContent, retryCount + 1).catch(console.error);
+                }, delay);
+                return; // Don't show error yet, we're retrying
+              }
+              
+              errorMessage = "⚠️ Cannot connect to server. Check your internet connection and try again.";
+              if (!connectionErrorToastId) {
+                const toastId = showConnectionError(
+                  'Connection Failed',
+                  'Unable to connect to the server after multiple attempts. Please check your internet connection and try again.'
+                );
+                setConnectionErrorToastId(toastId);
+              }
+              break;
+            case 'TIMEOUT':
+              errorMessage = "⚠️ Request timed out. The server is taking too long to respond.";
+              showError('Request Timeout', 'The server is taking too long to respond. Please try again.');
+              break;
+            case 'SERVER_ERROR':
+              errorMessage = "⚠️ Server error occurred. Please try again later.";
+              showError('Server Error', 'The server encountered an error. Please try again later.');
+              break;
+            default:
+              errorMessage = networkError.userMessage;
+              showError('Request Failed', networkError.userMessage);
+              break;
+          }
+        } else {
+          console.error("Failed to get chat completion:", e);
+        }
+        
         setChats((prevChats) =>
           prevChats.map((c) => {
             if (c.id === chatId) {
@@ -272,7 +489,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 ...c,
                 messages: c.messages.map((m) =>
                   m.id === assistantId
-                    ? { ...m, content: "⚠️ Error processing request. Please try again.", include: false}
+                    ? { ...m, content: errorMessage, include: false}
                     : m
                 ),
                 isActive: false,
@@ -283,6 +500,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           })
         );
       } finally {
+        // Clean up processing state
+        setProcessingChats(prev => {
+          const next = new Set(prev);
+          next.delete(chatId);
+          return next;
+        });
+        
         setChats(prevChats =>
           prevChats.map(c =>
             c.id === chatId && c.isActive 
@@ -292,7 +516,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         );
       }
     },
-    [chats, cancelQuery] 
+    [cancelQuery, healthStatus, processingChats, connectionErrorToastId, showConnectionError, showError] 
   );  
 
   const renameChat = (id: string, newTitle: string) => {
@@ -326,10 +550,48 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     models,
     workers,
     currentChatId,
+    healthStatus,
     setCurrentChat,
     cancelQuery,
-    getModels: async () => setModels(await getModels()),
-    getWorkers: async () => setWorkers(await getWorkers()),
+    getModels: async () => {
+      try {
+        const raw = await getModels();
+        setModels(
+          raw.map((m) => ({
+            id: m.id,
+            name: m.id.split("/").pop() || m.id,
+          }))
+        );
+      } catch (error: unknown) {
+        if (error instanceof Error && 'type' in error) {
+          const networkError = error as NetworkError;
+          console.warn('Failed to fetch models:', networkError.userMessage);
+          
+          if (networkError.type === 'CONNECTION_FAILED' && !connectionErrorToastId) {
+            const toastId = showConnectionError(
+              'Connection Failed', 
+              'Unable to connect to the server. Please check your internet connection.'
+            );
+            setConnectionErrorToastId(toastId);
+          }
+        } else {
+          console.error('Unexpected error fetching models:', error);
+        }
+      }
+    },
+    getWorkers: async () => {
+      try {
+        const workers = await getWorkers();
+        setWorkers(workers);
+      } catch (error: unknown) {
+        if (error instanceof Error && 'type' in error) {
+          const networkError = error as NetworkError;
+          console.warn('Failed to fetch workers:', networkError.userMessage);
+        } else {
+          console.error('Unexpected error fetching workers:', error);
+        }
+      }
+    },
     updateChatModel: (chatId, modelId) =>
       setChats((xs) =>
         xs.map((c) =>

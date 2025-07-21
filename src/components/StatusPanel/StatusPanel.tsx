@@ -13,7 +13,6 @@ export default function StatusPanel({ className = "" }: { className?: string }) 
       <div className="absolute inset-0 pointer-events-none">
         <QueryStatusPanel/>
       </div>
-
     </div>
   );
 }

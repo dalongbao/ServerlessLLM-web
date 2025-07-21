@@ -1,15 +1,13 @@
 "use client";
 import { useChat } from "@/context/ChatProvider";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
 import MessageBubble from "./MessageBubble";
+import MessageContent from "./MessageContent";
 import React from "react";
 import { useLayoutEffect } from "react";
 import { Send, Square } from "lucide-react";
 
 export default function ChatWindow() {
-  const { chats, currentChatId, sendMessage, cancelQuery } = useChat();
+  const { chats, currentChatId, sendMessage, cancelQuery, healthStatus } = useChat();
   const chat = chats.find((c) => c.id === currentChatId);
   const [draft, setDraft] = React.useState("");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -17,6 +15,7 @@ export default function ChatWindow() {
 
   const waiting = chat?.isActive ?? false;
   const isModelSelected = !!chat?.model;
+  const isServerUnhealthy = healthStatus.status === 'unhealthy';
 
   const autoResize = () => {
     const ta = textareaRef.current;
@@ -37,16 +36,21 @@ export default function ChatWindow() {
   if (!chat) return null;
 
   const send = async () => {
-    if (waiting || !isModelSelected) return;
+    if (waiting || !isModelSelected || isServerUnhealthy) return;
     const trimmed = draft.trim();
     if (!trimmed) return;
-    sendMessage(chat.id, trimmed).catch(console.error);
-    setDraft("");
-    requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-    });
+    try {
+      await sendMessage(chat.id, trimmed);
+      setDraft("");
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+      });
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // You could show a toast notification here
+    }
   };
 
   const handleStop = () => {
@@ -86,12 +90,7 @@ export default function ChatWindow() {
                 {m.model?.split("/").pop() || m.model}
               </div>
               {m.content ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeHighlight]}
-                >
-                  {m.content}
-                </ReactMarkdown>
+                <MessageContent content={m.content} />
               ) : (
                 <div className="inline-block max-w-[70%] rounded-xl bg-gray-200 px-3 py-1">
                   <span className="block text-4xl font-bold leading-none text-gray-500 animate-pulse">
@@ -125,9 +124,13 @@ export default function ChatWindow() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={waiting ? "Waiting for response..." : "Ask anything"}
+            placeholder={
+              waiting ? "Waiting for response..." : 
+              isServerUnhealthy ? "Server unhealthy - cannot send messages" : 
+              "Ask anything"
+            }
             rows={1}
-            disabled={waiting}
+            disabled={waiting || isServerUnhealthy}
           />
           <button
             type="button"
@@ -137,7 +140,7 @@ export default function ChatWindow() {
                 ? 'bg-red-600 hover:bg-red-700'
                 : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-40'
             }`}
-            disabled={!waiting && !draft.trim()}
+            disabled={!waiting && (!draft.trim() || isServerUnhealthy)}
           >
             {waiting ? (
               <Square className="h-5 w-5" aria-label="Stop generating"/>
