@@ -88,7 +88,7 @@ export const WorkerPanel: React.FC = () => {
   }
 
   return (
-    <div className="relative flex items-center justify-center w-full min-h-[30vh] p-5">
+    <div className="relative flex items-center justify-center w-full min-h-[30vh] p-5 overflow-hidden">
       {isOrbital ? (
         <div className="relative flex items-center justify-center" style={{ width: containerSize, height: containerSize }}>
           {rings.map((ring, ringIndex) => {
@@ -132,16 +132,23 @@ export const WorkerPanel: React.FC = () => {
           })}
         </div>
       ) : (
-        <div className={`grid gap-2.5 place-items-center w-auto worker-count-${workerCount}`}>
+        <div className={`mt-14 flex gap-2.5 overflow-x-auto max-w-full px-[30px] py-2 worker-count-${workerCount} scrollbar-hide`} 
+             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {/* Hide WebKit scrollbar */}
+          <style jsx>{`
+            .scrollbar-hide::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
           {workers.map(worker => (
             <div
               key={worker.node_id}
-              className={`worker-shape w-36 h-12 flex items-center justify-center font-mono font-bold text-black cursor-pointer transition-transform duration-200 hover:scale-105 hover:shadow-lg hover:z-10 ${getWorkerStatusColor(worker)}`}
+              className={`worker-shape text-[14px] p-4 w-36 h-10 flex items-center justify-center font-mono font-bold text-black cursor-pointer transition-transform duration-200 hover:shadow-lg hover:z-10 flex-shrink-0 ${getWorkerStatusColor(worker)}`}
               onMouseEnter={(e) => handleMouseEnter(worker, e)}
               onMouseLeave={handleMouseLeave}
               onClick={(e) => handleClick(worker, e)}
             >
-              SLLM_WORKER_{worker.node_id}
+              sllm_{worker.node_id}
             </div>
           ))}
         </div>

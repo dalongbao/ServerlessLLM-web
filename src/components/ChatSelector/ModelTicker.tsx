@@ -32,13 +32,7 @@ export default function ModelTicker({ models }: TickerProps) {
   return (
     <div
       ref={containerRef}
-      className="
-        relative               /* for absolutely-positioned scroll */
-        h-5 mt-1 w-full        /* fixed height + full width */
-        overflow-hidden        /* clip the scrolling */
-        text-xs text-gray-600  /* styling */
-        flex items-center      /* vertical centering */
-      "
+      className=""
     >
       {/* invisible measurer (no wrap) to detect overflow */}
       <div

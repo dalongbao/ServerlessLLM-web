@@ -26,13 +26,17 @@ function AppContent() {
           <div className="flex-2">
             <StatusPanel/>
           </div>
-          <div className="relative flex flex-[2.5] flex-col overflow-hidden pb-4">
-            <ChatSelector />
-            <NewChat />
+          <div className="relative flex flex-[2.5] flex-col overflow-hidden">
+            <div className="flex-1 min-h-0">
+              <ChatSelector />
+            </div>
+            <div className="flex-shrink-0 pb-4">
+              <NewChat />
+            </div>
           </div>
 
         </section>
-        <section className="flex h-full w-5/8 flex-col border-l"> 
+        <section className="flex h-full w-5/8 flex-col border-l border-gray-200"> 
           <ChatBar />
           <ChatWindow />
         </section>

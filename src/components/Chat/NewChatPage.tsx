@@ -74,13 +74,13 @@ export default function NewChatPage() {
   };
 
   return (
-    <section className="flex flex-1 flex-col items-center justify-center bg-white font-[Calibri] text-black p-8">
-      <div className="w-full max-w-2xl space-y-8">
+    <section className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50/30 font-[Calibri] text-black px-8 py-6">
+      <div className="w-full max-w-4xl mx-auto space-y-8">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-gray-800">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
             How can I help you today?
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-slate-600">
             Start a conversation with {mostRecentModel.split("/").pop() || mostRecentModel}
           </p>
         </div>
@@ -91,11 +91,11 @@ export default function NewChatPage() {
               e.preventDefault();
               if (!isCreating) createChatAndSend();
             }}
-            className="flex items-end gap-2 rounded-2xl border bg-gray-50 p-1 pr-2 shadow-lg"
+            className="flex items-end gap-3 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/50 p-2 shadow-xl backdrop-blur-sm"
           >
             <textarea
               ref={textareaRef}
-              className="flex-1 resize-none self-center bg-transparent p-4 outline-none max-h-[30vh] whitespace-pre-wrap text-lg disabled:bg-gray-100"
+              className="flex-1 resize-none self-center bg-transparent pr-4 pl-4 pt-4 outline-none max-h-[30vh] whitespace-pre-wrap text-lg disabled:bg-slate-50/50 placeholder-slate-500"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -107,10 +107,10 @@ export default function NewChatPage() {
             <button
               type="button"
               onClick={createChatAndSend}
-              className={`flex items-center justify-center rounded-lg px-4 py-3 text-white transition-colors ${
+              className={`flex items-center justify-center rounded-xl px-4 py-3 text-white transition-all duration-300 shadow-lg backdrop-blur-sm ${
                 isCreating
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-40'
+                  ? 'bg-gradient-to-r from-slate-400 to-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 hover:shadow-xl hover:shadow-blue-500/25 disabled:hover:shadow-none'
               }`}
               disabled={isCreating || !draft.trim()}
             >
@@ -119,7 +119,7 @@ export default function NewChatPage() {
           </form>
         </div>
         
-        <div className="text-center text-sm text-gray-500">
+        <div className="text-center text-sm text-slate-500">
           Press Enter to send, Shift+Enter for new line
         </div>
       </div>

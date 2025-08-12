@@ -3,7 +3,107 @@ import { LLM_SERVER_URL, TIMEOUT, MAX_TOKENS } from "@/context/constants";
 import { Worker, Model, QueueResponse, HealthStatus } from "@/context/types";
 import { categorizeAxiosError } from "@/context/errorTypes";
 
+// Import dummy data
+import dummyModels from "@/dummy/models.json";
+
+// Check if we should use dummy data
+const USE_DUMMY_DATA = process.env.NEXT_PUBLIC_USE_DUMMY_DATA === 'true';
+
 export const getWorkers = async (): Promise<Worker[]> => {
+  if (USE_DUMMY_DATA) {
+    // Return dummy workers data
+    return [
+      { 
+        node_id: "worker-1", 
+        status: true, 
+        disk_models: {},
+        pinned_memory_pool: {},
+        io_queue: [],
+        hardware_info: {
+          GPUs_info: {
+            "0": {
+              Name: "NVIDIA A100",
+              Load: "50%",
+              Free_Memory: "40GB",
+              Used_Memory: "40GB",
+              Total_Memory: "80GB"
+            }
+          }
+        },
+        chunk_size: 1024,
+        total_memory_pool_chunks: 100,
+        used_memory_pool_chunks: 50,
+        queued_models: {}
+      },
+      { 
+        node_id: "worker-2", 
+        status: true, 
+        disk_models: {},
+        pinned_memory_pool: {},
+        io_queue: [],
+        hardware_info: {
+          GPUs_info: {
+            "0": {
+              Name: "NVIDIA V100",
+              Load: "30%",
+              Free_Memory: "25GB",
+              Used_Memory: "7GB",
+              Total_Memory: "32GB"
+            }
+          }
+        },
+        chunk_size: 1024,
+        total_memory_pool_chunks: 80,
+        used_memory_pool_chunks: 20,
+        queued_models: {}
+      },
+      { 
+        node_id: "worker-3", 
+        status: true, 
+        disk_models: {},
+        pinned_memory_pool: {},
+        io_queue: [],
+        hardware_info: {
+          GPUs_info: {
+            "0": {
+              Name: "NVIDIA V100",
+              Load: "30%",
+              Free_Memory: "25GB",
+              Used_Memory: "7GB",
+              Total_Memory: "32GB"
+            }
+          }
+        },
+        chunk_size: 1024,
+        total_memory_pool_chunks: 80,
+        used_memory_pool_chunks: 20,
+        queued_models: {}
+      },
+      { 
+        node_id: "worker-4", 
+        status: true, 
+        disk_models: {},
+        pinned_memory_pool: {},
+        io_queue: [],
+        hardware_info: {
+          GPUs_info: {
+            "0": {
+              Name: "NVIDIA V100",
+              Load: "30%",
+              Free_Memory: "25GB",
+              Used_Memory: "7GB",
+              Total_Memory: "32GB"
+            }
+          }
+        },
+        chunk_size: 1024,
+        total_memory_pool_chunks: 80,
+        used_memory_pool_chunks: 20,
+        queued_models: {}
+      },
+    ];
+  }
+
   try {
     const res = await axios.get(
       `${LLM_SERVER_URL}/v1/workers`,
@@ -18,6 +118,11 @@ export const getWorkers = async (): Promise<Worker[]> => {
 };
 
 export const getModels = async (): Promise<Model[]> => {
+  if (USE_DUMMY_DATA) {
+    // Return dummy models data
+    return dummyModels;
+  }
+
   try {
     const res = await axios.get<{ models: Model[] }>(
       `${LLM_SERVER_URL}/v1/models`,
@@ -36,6 +141,23 @@ export const postChatCompletion = async (
   messages: { role: string; content: string }[],
   queryId: string
 ) => {
+  if (USE_DUMMY_DATA) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+    
+    // Generate a dummy response based on the user's message
+    const userMessage = messages[messages.length - 1]?.content || "";
+    const dummyResponses = [
+      `I understand you said: "${userMessage}". This is a dummy response from the ${model} model.`,
+      `That's an interesting question about "${userMessage}". In dummy mode, I can provide simulated responses.`,
+      `Thanks for asking about "${userMessage}". This response is generated locally without connecting to a real AI model.`,
+      `I see you mentioned "${userMessage}". This is a test response from the dummy backend.`,
+      `Regarding "${userMessage}" - this is a placeholder response while using dummy data.`
+    ];
+    
+    return dummyResponses[Math.floor(Math.random() * dummyResponses.length)];
+  }
+
   try {
     const res = await axios.post(
       `${LLM_SERVER_URL}/v1/chat/completions`,
@@ -56,6 +178,18 @@ export const postChatCompletion = async (
 };
 
 export const getQueryStatus = async (queryId: string) => {
+  if (USE_DUMMY_DATA) {
+    // Simulate query progression
+    const randomStatus = Math.random();
+    if (randomStatus < 0.3) {
+      return { status: 'QUEUED', queue_position: Math.floor(Math.random() * 5) + 1 };
+    } else if (randomStatus < 0.6) {
+      return { status: 'PROCESSING', queue_position: null };
+    } else {
+      return { status: 'COMPLETED', queue_position: null };
+    }
+  }
+
   try {
     const { data } = await axios.get<QueueResponse>(
       `${LLM_SERVER_URL}/v1/queue`,
@@ -82,6 +216,15 @@ export const getQueryStatus = async (queryId: string) => {
 };
 
 export const getServerHealth = async (): Promise<HealthStatus> => {
+  if (USE_DUMMY_DATA) {
+    // Always return healthy status in dummy mode
+    return {
+      status: 'healthy',
+      message: 'Dummy backend is running - 2/2 workers healthy',
+      timestamp: Date.now()
+    };
+  }
+
   try {
     const startTime = Date.now();
     

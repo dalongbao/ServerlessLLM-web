@@ -18,9 +18,9 @@ const ChatTitle = ({ chat, isRenaming, setRenamingChatId }: { chat: Chat; isRena
       if (newTitle && newTitle !== chat.title) { renameChat(chat.id, newTitle); }
       setRenamingChatId(null);
     };
-    return <input type="text" defaultValue={chat.title} onKeyDown={(e) => e.key === 'Enter' && handleRename(e.currentTarget.value)} onBlur={(e) => handleRename(e.currentTarget.value)} onClick={(e) => e.stopPropagation()} autoFocus className="w-full truncate text-center text-lg font-medium text-black bg-gray-200 rounded p-0 m-0 focus:outline-none" />;
+    return <input type="text" defaultValue={chat.title} onKeyDown={(e) => e.key === 'Enter' && handleRename(e.currentTarget.value)} onBlur={(e) => handleRename(e.currentTarget.value)} onClick={(e) => e.stopPropagation()} autoFocus className="w-full truncate text-center text-lg font-medium text-slate-800 bg-gradient-to-br from-white to-slate-50 border border-slate-200/60 rounded-xl px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm backdrop-blur-sm" />;
   }
-  return <div className="w-full truncate text-center text-lg font-medium text-black">{chat.title}</div>;
+  return <div className="w-full truncate text-center text-lg font-medium text-slate-800">{chat.title}</div>;
 };
 
 const BlueRingHighlight = ({ animate }: { animate?: boolean }) => <span className={`pointer-events-none absolute inset-0 -m-1 rounded-lg ring-2 ring-blue-500 z-10 ${animate ? "animate-wiggle-once" : ""}`} />;
@@ -64,7 +64,7 @@ const ChatCarousel = ({ hook, renamingChatId, setRenamingChatId, setDeletingChat
             style={{ height: `${CARD_H}px`, transform: `translate(-50%, calc(-50% + ${translateY}px)) scale(${isCentre ? 1 : 0.98})`, zIndex: isCentre ? 20 : len - Math.abs(o), opacity: 1 }}
           >
             {isCentre && chat.id === currentChatId && <BlueRingHighlight animate={ringAnimate} />}
-            <div className={`relative w-full h-full rounded-lg bg-gray-50 flex flex-col justify-center items-center p-2 z-20 ${slideClass} ${isCentre && chat.id === currentChatId ? "shadow-md" : "shadow-sm"}`}>
+            <div className={`relative w-full h-full rounded-xl bg-gradient-to-br from-white to-slate-50/80 border border-slate-200/60 flex flex-col justify-center items-center p-3 z-20 backdrop-blur-sm ${slideClass} ${isCentre && chat.id === currentChatId ? "shadow-xl shadow-blue-500/10" : "shadow-lg"}`}>
               <ChatTitle chat={chat} isRenaming={renamingChatId === chat.id} setRenamingChatId={setRenamingChatId} />
               <ModelTicker models={chat.models || []} />
               <ChatOptions onRename={() => setRenamingChatId(chat.id)} onDelete={() => setDeletingChat(chat)} />
@@ -96,7 +96,7 @@ const ChatList = ({ hook, renamingChatId, setRenamingChatId, setDeletingChat }: 
             className={`group relative w-[90%] flex-shrink-0 transition-all duration-200 cursor-pointer focus:outline-none mt-2 first:mt-0 ${isNew ? "animate-wiggle-once" : ""}`}
           >
             {isSel && <BlueRingHighlight />}
-            <div className={`w-full h-full rounded-lg bg-gray-50 hover:bg-gray-100 flex flex-col justify-center items-center p-2 ${isSel ? "shadow-md" : "shadow-sm"}`}>
+            <div className={`w-full h-full rounded-xl bg-gradient-to-br from-white to-slate-50/80 border border-slate-200/60 hover:bg-gradient-to-br hover:from-slate-50 hover:to-slate-100/80 hover:border-slate-300/60 flex flex-col justify-center items-center p-3 transition-all duration-300 backdrop-blur-sm ${isSel ? "shadow-xl shadow-blue-500/10" : "shadow-lg"}`}>
               <ChatTitle chat={chat} isRenaming={renamingChatId === chat.id} setRenamingChatId={setRenamingChatId} />
               <ModelTicker models={chat.models || []} />
               <ChatOptions onRename={() => setRenamingChatId(chat.id)} onDelete={() => setDeletingChat(chat)} />
@@ -124,7 +124,7 @@ export default function ChatSelector() {
     }
   };
 
-  const baseClasses = "relative h-full w-full flex-1 select-none px-2 focus:outline-none";
+  const baseClasses = "relative h-full w-full flex-1 select-none px-2 focus:outline-none bg-gradient-to-br from-slate-50 to-blue-50/30 font-[Calibri]";
   const layoutClasses = isCarousel ? "flex flex-col items-center justify-center overflow-hidden" : "flex flex-col items-center overflow-y-auto py-2";
 
   return (
