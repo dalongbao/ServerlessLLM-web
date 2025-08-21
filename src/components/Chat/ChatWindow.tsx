@@ -127,7 +127,7 @@ export default function ChatWindow() {
             onKeyDown={handleKeyDown}
             placeholder={
               waiting ? "Waiting for response..." : 
-              isServerUnhealthy ? "Server unhealthy - cannot send messages" : 
+              isServerUnhealthy ? "Server unavailable - cannot send messages" : 
               "Ask anything"
             }
             rows={1}

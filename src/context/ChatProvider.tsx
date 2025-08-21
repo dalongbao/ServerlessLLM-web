@@ -66,46 +66,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [processingChats, setProcessingChats] = useState<Set<string>>(new Set());
 
   usePolling(async () => {
-    try {
-      const raw = await getModels();
+    const raw = await getModels();
+    if (raw.length > 0) {
       setModels(
         raw.map((m) => ({
           id: m.id,
           name: m.id.split("/").pop() || m.id,
         }))
       );
-    } catch (error: unknown) {
-      if (error instanceof Error && 'type' in error) {
-        const networkError = error as NetworkError;
-        console.warn('Failed to fetch models:', networkError.userMessage);
-        
-        if (networkError.type === 'CONNECTION_FAILED' && !connectionErrorToastId) {
-          const toastId = showConnectionError(
-            'Connection Failed', 
-            'Unable to connect to the server. Please check your internet connection.'
-          );
-          setConnectionErrorToastId(toastId);
-        }
-        // Don't clear existing models on network errors, just log the warning
-      } else {
-        console.error('Unexpected error fetching models:', error);
-      }
     }
+    // If empty array returned, keep existing models (server likely offline)
   }, POLLING_INTERVAL);
 
   usePolling(async () => {
-    try {
-      const workers = await getWorkers();
+    const workers = await getWorkers();
+    if (workers.length > 0) {
       setWorkers(workers);
-    } catch (error: unknown) {
-      if (error instanceof Error && 'type' in error) {
-        const networkError = error as NetworkError;
-        console.warn('Failed to fetch workers:', networkError.userMessage);
-        // Don't clear existing workers on network errors, just log the warning
-      } else {
-        console.error('Unexpected error fetching workers:', error);
-      }
     }
+    // If empty array returned, keep existing workers (server likely offline)
   }, WORKER_POLLING_INTERVAL);
 
   usePolling(async () => {
@@ -312,8 +290,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       
       // Check server health before sending
       if (healthStatus.status === 'unhealthy') {
-        console.warn('Cannot send message: Server is unhealthy');
-        throw new Error(`Server is ${healthStatus.status}: ${healthStatus.message}`);
+        console.warn('Cannot send message: Server is unavailable');
+        throw new Error(`Server is unavailable: ${healthStatus.message}`);
       }
       
       // Check if this chat is already processing a message
@@ -554,43 +532,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setCurrentChat,
     cancelQuery,
     getModels: async () => {
-      try {
-        const raw = await getModels();
+      const raw = await getModels();
+      if (raw.length > 0) {
         setModels(
           raw.map((m) => ({
             id: m.id,
             name: m.id.split("/").pop() || m.id,
           }))
         );
-      } catch (error: unknown) {
-        if (error instanceof Error && 'type' in error) {
-          const networkError = error as NetworkError;
-          console.warn('Failed to fetch models:', networkError.userMessage);
-          
-          if (networkError.type === 'CONNECTION_FAILED' && !connectionErrorToastId) {
-            const toastId = showConnectionError(
-              'Connection Failed', 
-              'Unable to connect to the server. Please check your internet connection.'
-            );
-            setConnectionErrorToastId(toastId);
-          }
-        } else {
-          console.error('Unexpected error fetching models:', error);
-        }
       }
+      // If empty array returned, keep existing models (server likely offline)
     },
     getWorkers: async () => {
-      try {
-        const workers = await getWorkers();
+      const workers = await getWorkers();
+      if (workers.length > 0) {
         setWorkers(workers);
-      } catch (error: unknown) {
-        if (error instanceof Error && 'type' in error) {
-          const networkError = error as NetworkError;
-          console.warn('Failed to fetch workers:', networkError.userMessage);
-        } else {
-          console.error('Unexpected error fetching workers:', error);
-        }
       }
+      // If empty array returned, keep existing workers (server likely offline)
     },
     updateChatModel: (chatId, modelId) =>
       setChats((xs) =>

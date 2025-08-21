@@ -11,9 +11,8 @@ export const getWorkers = async (): Promise<Worker[]> => {
     );
     return Object.values(res.data);
   } catch (error: unknown) {
-    const networkError = categorizeAxiosError(error);
-    console.error('Failed to get workers:', networkError.userMessage);
-    throw networkError;
+    // Silently handle server offline/connection errors
+    return [];
   }
 };
 
@@ -25,9 +24,8 @@ export const getModels = async (): Promise<Model[]> => {
     );
     return res.data.models;
   } catch (error: unknown) {
-    const networkError = categorizeAxiosError(error);
-    console.error('Failed to get models:', networkError.userMessage);
-    throw networkError;
+    // Silently handle server offline/connection errors
+    return [];
   }
 };
 

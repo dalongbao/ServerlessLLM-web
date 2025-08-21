@@ -55,7 +55,7 @@ export default function HealthPopup({ healthStatus }: HealthPopupProps) {
       case 'degraded':
         return 'Server Degraded';
       case 'unhealthy':
-        return 'Server Unhealthy';
+        return 'Server Unavailable';
       default:
         return 'Status Unknown';
     }
