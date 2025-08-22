@@ -29,25 +29,29 @@ export interface Model {
 }
 export interface Worker {
   node_id: string;
-  disk_models: object;
-  pinned_memory_pool: object;
-  io_queue: string[];
+  status: "ready" | "busy" | "offline";
+  instances_on_device: Record<string, unknown>;
   hardware_info: {
-    GPUs_info: {
+    pcie_bandwidth?: number;
+    disk_total_space?: number;
+    disk_write_bandwidth?: number;
+    disk_read_bandwidth?: number;
+    static_gpu_info?: {
       [key: string]: {
-        Name: string;
-        Load: string;
-        Free_Memory: string;
-        Used_Memory: string;
-        Total_Memory: string;
+        name: string;
+        total_memory: number;
+      };
+    };
+    cpu_percent?: number;
+    gpu_info?: {
+      [key: string]: {
+        load: number;
+        memory_free: number;
+        memory_used: number;
       };
     };
   };
-  chunk_size: number;
-  total_memory_pool_chunks: number;
-  used_memory_pool_chunks: number;
-  queued_models: object;
-  status: boolean;
+  last_heartbeat_time: string;
 }
 export interface ChatCtx {
   chats: Chat[];

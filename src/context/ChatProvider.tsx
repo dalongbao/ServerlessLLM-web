@@ -12,7 +12,7 @@ import {
   getModels,
   getWorkers,
   postChatCompletion,
-  getQueryStatus,
+  getRequestStatus,
   getServerHealth,
 } from "@/context/api";
 import { NetworkError } from "@/context/errorTypes";
@@ -121,7 +121,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      const result = await getQueryStatus(queryId);
+      const result = await getRequestStatus(queryId);
       setChats(prevChats =>
         prevChats.map(chat => {
           // Use fresh state to validate the update is still relevant
@@ -133,7 +133,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 startTime: chat.activeQuery.startTime,
                 model: chat.activeQuery.model,
                 status: result.status as QueryStatus,
-                queuePosition: result.queue_position, 
+                queuePosition: null, 
               },
             };
           }
@@ -306,20 +306,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const userId = generateId();
       const assistantId = generateId();
 
-      let modelForThisMessage: string | undefined;
-      let chatExists = false;
-      
-      // Get fresh chat state and model
-      setChats(prevChats => {
-        const chatForModel = prevChats.find(c => c.id === chatId);
-        if (chatForModel) {
-          modelForThisMessage = chatForModel.model;
-          chatExists = true;
-        }
-        return prevChats; // No change, just reading state
-      });
-      
-      if (!chatExists || !modelForThisMessage) {
+      // Find the chat and get its model
+      const currentChat = chats.find(c => c.id === chatId);
+      if (!currentChat) {
         setProcessingChats(prev => {
           const next = new Set(prev);
           next.delete(chatId);
@@ -328,40 +317,44 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         throw new Error("Chat not found");
       }
 
-      setChats((prevChats) =>
-        prevChats.map((c) => {
-          if (c.id === chatId) {
-            const initialQuery: ActiveQuery = { 
-              id: assistantId, 
-              status: "QUEUED", 
-              startTime: Date.now(), 
-              model: modelForThisMessage!, 
-              queuePosition: null, 
-            };
-            const userMsg: Message = { 
-              id: userId, 
-              role: "user", 
-              content: trimmed, 
-              model: modelForThisMessage!, 
-              include: true
-            };
-            const assistantMsg: Message = { 
-              id: assistantId, 
-              role: "assistant", 
-              content: "", 
-              model: modelForThisMessage!, 
-              include: true
-            };
-            return {
-              ...c,
-              messages: [...c.messages, userMsg, assistantMsg],
-              isActive: true,
-              models: [...new Set([...(c.models || []), modelForThisMessage!])],
-              activeQuery: initialQuery,
-            };
-          }
-          return c;
-        })
+      const modelForThisMessage = currentChat.model;
+      
+      // Add user message and empty assistant message to UI
+      const userMsg: Message = { 
+        id: userId, 
+        role: "user", 
+        content: trimmed, 
+        model: modelForThisMessage, 
+        include: true
+      };
+      const assistantMsg: Message = { 
+        id: assistantId, 
+        role: "assistant", 
+        content: "", 
+        model: modelForThisMessage, 
+        include: true
+      };
+      
+      const initialQuery: ActiveQuery = { 
+        id: assistantId, 
+        status: "QUEUED", 
+        startTime: Date.now(), 
+        model: modelForThisMessage, 
+        queuePosition: null, 
+      };
+
+      setChats(prevChats =>
+        prevChats.map(c => 
+          c.id === chatId 
+            ? {
+                ...c,
+                messages: [...c.messages, userMsg, assistantMsg],
+                isActive: true,
+                models: [...new Set([...(c.models || []), modelForThisMessage])],
+                activeQuery: initialQuery,
+              }
+            : c
+        )
       );
 
       const timeoutId = setTimeout(() => {
@@ -370,32 +363,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }, REQUEST_TIMEOUT);
 
       try {
-        let includedMessages: Message[] = [];
-        let currentChatFound = false;
-        
-        // Get fresh chat messages
-        setChats(prevChats => {
-          const currentChat = prevChats.find(c => c.id === chatId);
-          if (currentChat) {
-            includedMessages = currentChat.messages.filter(
-              (message) => message.include !== false
-            );
-            currentChatFound = true;
-          }
-          return prevChats; // No change, just reading state
-        });
-        
-        if (!currentChatFound) {
+        // Get current chat messages for context
+        const updatedChat = chats.find(c => c.id === chatId);
+        if (!updatedChat) {
           throw new Error("Chat not found after being set.");
         }
 
+        const includedMessages = updatedChat.messages.filter(message => message.include !== false);
         const history = [
           { role: "system", content: SYSTEM_PROMPT },
-          ...toChatFormat(includedMessages), 
-          { role: "user", content: trimmed },
+          ...toChatFormat(includedMessages),
         ];
 
-        const reply = await postChatCompletion(modelForThisMessage!, history, assistantId);
+        // Make the API call
+        const reply = await postChatCompletion(modelForThisMessage, history, assistantId);
         clearTimeout(timeoutId);
 
         let wasCancelled = false;
