@@ -122,6 +122,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     
     try {
       const result = await getRequestStatus(queryId);
+      
+      // If request is completed, clear the active query since server has processed it
+      if (result.status === 'completed') {
+        setChats(prevChats =>
+          prevChats.map(chat => {
+            if (chat.id === capturedCurrentChatId && chat.activeQuery?.id === queryId) {
+              return {
+                ...chat,
+                activeQuery: null,
+                isActive: false,
+              };
+            }
+            return chat;
+          })
+        );
+        return; // Stop polling this request
+      }
+      
       setChats(prevChats =>
         prevChats.map(chat => {
           // Use fresh state to validate the update is still relevant
@@ -304,7 +322,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setProcessingChats(prev => new Set(prev.add(chatId)));
       
       const userId = generateId();
-      const assistantId = generateId();
+      const assistantId = `chatcmpl-${generateId()}`;
 
       // Find the chat and get its model
       const currentChat = chats.find(c => c.id === chatId);
@@ -377,6 +395,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
         // Make the API call
         const reply = await postChatCompletion(modelForThisMessage, history, assistantId);
+        console.log('Received reply:', reply);
         clearTimeout(timeoutId);
 
         let wasCancelled = false;

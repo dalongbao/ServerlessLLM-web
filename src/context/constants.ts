@@ -1,4 +1,4 @@
-export const LLM_SERVER_URL = "https://settlement-boy-dancing-membrane.trycloudflare.com"; // https://chat.serverless-ai.com";
+export const LLM_SERVER_URL = "https://fe-fa-hair-technological.trycloudflare.com"; // https://chat.serverless-ai.com";
 export const STORAGE_KEY = "chat_history_v1";
 export const ID_KEY = "current_chat_id_v1";
 export const SERVER_WAITTIME = 8;

@@ -45,7 +45,22 @@ export const postChatCompletion = async (
       },
       { timeout: TIMEOUT, proxy: false }
     );
-    return res.data.choices[0].message.content as string;
+    
+    console.log('Chat completion response:', res.data);
+    
+    // Handle different possible response formats
+    if (res.data.choices && res.data.choices[0] && res.data.choices[0].message) {
+      return (res.data.choices[0].message.content as string).trim();
+    } else if (res.data.content) {
+      return (res.data.content as string).trim();
+    } else if (res.data.message) {
+      return (res.data.message as string).trim();
+    } else if (typeof res.data === 'string') {
+      return res.data.trim();
+    } else {
+      console.error('Unexpected response format:', res.data);
+      return JSON.stringify(res.data);
+    }
   } catch (error: unknown) {
     const networkError = categorizeAxiosError(error);
     console.error('Failed to post chat completion:', networkError.userMessage);
@@ -65,6 +80,18 @@ export const getRequestStatus = async (requestId: string) => {
     };
   } catch (error: unknown) {
     const networkError = categorizeAxiosError(error);
+    
+    // If 404, the request has expired or completed - return completed status
+    if (networkError.type === 'SERVER_ERROR' && error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response: { status: number } };
+      if (axiosError.response.status === 404) {
+        return {
+          status: 'completed',
+          request_id: requestId,
+        };
+      }
+    }
+    
     console.error(`Failed to get request status for ${requestId}:`, networkError.userMessage);
     throw networkError;
   }
