@@ -10,7 +10,7 @@ export const getWorkers = async (): Promise<Worker[]> => {
       { timeout: 10000 }
     );
     return Object.values(res.data);
-  } catch (error: unknown) {
+  } catch {
     // Silently handle server offline/connection errors
     return [];
   }
@@ -23,7 +23,7 @@ export const getModels = async (): Promise<Model[]> => {
       { timeout: 10000 }
     );
     return res.data.models;
-  } catch (error: unknown) {
+  } catch {
     // Silently handle server offline/connection errors
     return [];
   }
