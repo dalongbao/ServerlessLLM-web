@@ -34,12 +34,14 @@ export const WorkerInfoPopup: React.FC<WorkerInfoPopupProps> = ({
   const gb = (n?: number) =>
     n == null ? "--" : `${(n / 1024 ** 3).toFixed(2)} GB`;
 
-  // Safely extract the first available GPU's information.
-  const gpuKey = Object.keys(worker.hardware_info?.GPUs_info ?? {})[0];
-  const gpu = gpuKey ? worker.hardware_info.GPUs_info[gpuKey] : null;
+  // Helper to convert bytes/sec to MB/s
+  const mbps = (n?: number) =>
+    n == null ? "--" : `${(n / 1024 ** 2).toFixed(1)} MB/s`;
 
-  // Calculate the total memory pool size from chunks and chunk size.
-  const totalMemoryPoolSize = worker.chunk_size * worker.total_memory_pool_chunks;
+  // Safely extract the first available GPU's information.
+  const gpuKey = Object.keys(worker.hardware_info?.static_gpu_info ?? {})[0];
+  const staticGpu = gpuKey ? worker.hardware_info.static_gpu_info?.[gpuKey] : null;
+  const dynamicGpu = gpuKey ? worker.hardware_info.gpu_info?.[gpuKey] : null;
 
   /* ---------- render ---------- */
   return (
@@ -50,59 +52,65 @@ export const WorkerInfoPopup: React.FC<WorkerInfoPopupProps> = ({
       {/* --- Header with Worker ID and Status --- */}
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-sm font-bold text-blue-600">
-          Worker {worker.node_id}
+          Worker ID: {worker.node_id}
         </h4>
         <div className="flex items-center gap-1.5">
           <span
-            className={`h-2 w-2 rounded-full ${
-              worker.status ? "bg-red-500" : "bg-green-500"
-            }`}
+            className={`h-2 w-2 rounded-full ${worker.status === "ready" ? "bg-green-500" : "bg-red-500"
+              }`}
           ></span>
-          <span>{worker.status ? "Inference" : "Free"}</span>
+          <span className="capitalize">{worker.status}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-1 leading-snug">
-        {/* --- Model and Queue Info --- */}
+        {/* --- Instance Info --- */}
         <div>
-          <strong>Disk models:</strong>{" "}
-          {Object.keys(worker.disk_models ?? {}).length}
-        </div>
-        <div>
-          <strong>Queued models:</strong>{" "}
-          {Object.keys(worker.queued_models ?? {}).length}
-        </div>
-        <div>
-          <strong>IO queue:</strong> {worker.io_queue?.length ?? 0}
+          <strong>Active Instances:</strong>{" "}
+          {Object.keys(worker.instances_on_device).length}
         </div>
 
-        {/* --- Memory Info --- */}
+        {/* --- Hardware Info --- */}
         <div className="mt-2 pt-2 border-t border-gray-200">
-          <strong>Memory Pool:</strong> {gb(totalMemoryPoolSize)}
-        </div>
-        <div>
-          <strong>Memory Chunks:</strong> {worker.used_memory_pool_chunks} /{" "}
-          {worker.total_memory_pool_chunks}
-        </div>
-        <div>
-          <strong>Chunk Size:</strong>{" "}
-          {worker.chunk_size ? `${worker.chunk_size / 1024} KB` : "--"}
+          <div>
+            <strong>CPU Usage:</strong> {worker.hardware_info.cpu_percent?.toFixed(1) ?? "--"}%
+          </div>
+          <div>
+            <strong>Disk Space:</strong> {gb(worker.hardware_info.disk_total_space)}
+          </div>
+          <div>
+            <strong>Disk Read:</strong> {mbps(worker.hardware_info.disk_read_bandwidth)}
+          </div>
+          <div>
+            <strong>Disk Write:</strong> {mbps(worker.hardware_info.disk_write_bandwidth)}
+          </div>
         </div>
 
         {/* --- GPU Info (if available) --- */}
-        {gpu && (
+        {staticGpu && dynamicGpu && (
           <div className="mt-2 pt-2 border-t border-gray-200">
             <div>
-              <strong>GPU:</strong> {gpu.Name}
+              <strong>GPU:</strong> {staticGpu.name}
             </div>
             <div>
-              <strong>GPU Load:</strong> {gpu.Load}
+              <strong>GPU Load:</strong> {dynamicGpu.load}%
             </div>
             <div>
-              <strong>GPU Memory:</strong> {gpu.Used_Memory} / {gpu.Total_Memory}
+              <strong>GPU Memory:</strong> {dynamicGpu.memory_used} MB / {staticGpu.total_memory} MB
+            </div>
+            <div>
+              <strong>GPU Free:</strong> {dynamicGpu.memory_free} MB
             </div>
           </div>
         )}
+
+        {/* --- Last Heartbeat --- */}
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <div>
+            <strong>Last Heartbeat:</strong>{" "}
+            {new Date(worker.last_heartbeat_time).toLocaleTimeString()}
+          </div>
+        </div>
       </div>
     </div>
   );

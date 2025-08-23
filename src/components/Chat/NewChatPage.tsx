@@ -44,6 +44,9 @@ export default function NewChatPage() {
       
       setCurrentChat(newChatId);
       
+      // Small delay to ensure state updates are processed before sending message
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       await sendMessage(newChatId, trimmed);
     } catch (error) {
       console.error('Failed to create chat and send message:', error);

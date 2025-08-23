@@ -47,7 +47,7 @@ export const useChat = () => {
   return ctx;
 };
 
-export function ChatProvider({ children }: { children: ReactNode }) { 
+export function ChatProvider({ children }: { children: ReactNode }) {
   const { chats: restored, id: restoredId } = restoreChats();
   const [chats, setChats] = useState<Chat[]>(restored);
   const [currentChatId, setCurrentChat] = useState<string>(
@@ -68,12 +68,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   usePolling(async () => {
     const raw = await getModels();
     if (raw.length > 0) {
-      setModels(
-        raw.map((m) => ({
-          id: m.id,
-          name: m.id.split("/").pop() || m.id,
-        }))
-      );
+      // Extract base model names and deduplicate
+      const modelMap = new Map();
+      raw.forEach((m) => {
+        const baseName = m.id.includes(":") ? m.id.split(":")[0] : m.id;
+        if (!modelMap.has(baseName)) {
+          modelMap.set(baseName, {
+            id: m.id, // Keep original ID for API calls
+            name: baseName,
+          });
+        }
+      });
+      setModels(Array.from(modelMap.values()));
     }
     // If empty array returned, keep existing models (server likely offline)
   }, POLLING_INTERVAL);
@@ -90,7 +96,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     try {
       const health = await getServerHealth();
       setHealthStatus(health);
-      
+
       // Clear connection error toast if server is back online
       if (connectionErrorToastId && (health.status === 'healthy' || health.status === 'degraded')) {
         removeToast(connectionErrorToastId);
@@ -106,7 +112,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const capturedCurrentChatId = currentChatId;
     let currentChat: Chat | undefined;
     let queryId: string | undefined;
-    
+
     // Get fresh state
     setChats(prevChats => {
       currentChat = prevChats.find(c => c.id === capturedCurrentChatId);
@@ -115,14 +121,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
       return prevChats; // No change, just reading state
     });
-    
+
     if (!currentChat?.activeQuery || !queryId) {
-      return; 
+      return;
     }
-    
+
     try {
       const result = await getRequestStatus(queryId);
-      
+
       // If request is completed, clear the active query since server has processed it
       if (result.status === 'completed') {
         setChats(prevChats =>
@@ -139,7 +145,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         );
         return; // Stop polling this request
       }
-      
+
       setChats(prevChats =>
         prevChats.map(chat => {
           // Use fresh state to validate the update is still relevant
@@ -151,7 +157,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 startTime: chat.activeQuery.startTime,
                 model: chat.activeQuery.model,
                 status: result.status as QueryStatus,
-                queuePosition: null, 
+                queuePosition: null,
               },
             };
           }
@@ -162,7 +168,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (error instanceof Error && 'type' in error) {
         const networkError = error as NetworkError;
         console.warn(`Failed to poll status for chat ${capturedCurrentChatId}:`, networkError.userMessage);
-        
+
         // Only cancel the query if it's not a temporary network issue
         if (networkError.type === 'CONNECTION_FAILED') {
           if (!connectionErrorToastId) {
@@ -172,20 +178,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             );
             setConnectionErrorToastId(toastId);
           }
-          
+
           setChats(prevChats =>
             prevChats.map(chat => {
               if (chat.id === capturedCurrentChatId && chat.activeQuery?.id === queryId) {
-                return { 
-                  ...chat, 
-                  isActive: false, 
+                return {
+                  ...chat,
+                  isActive: false,
                   activeQuery: null,
                   messages: chat.messages.map(m =>
                     m.role === 'assistant' && m.content === ''
                       ? { ...m, content: '⚠️ Connection lost while processing. Please try again.', include: false }
                       : m
                   )
-                }; 
+                };
               }
               return chat;
             })
@@ -196,7 +202,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setChats(prevChats =>
           prevChats.map(chat => {
             if (chat.id === capturedCurrentChatId && chat.activeQuery?.id === queryId) {
-              return { ...chat, isActive: false, activeQuery: null }; 
+              return { ...chat, isActive: false, activeQuery: null };
             }
             return chat;
           })
@@ -235,7 +241,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       let i = 0;
       let timeoutId: NodeJS.Timeout | null = null;
       let cancelled = false;
-      
+
       const tick = () => {
         // Check if chat still exists and is active before updating
         setChats((prevChats) => {
@@ -247,21 +253,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             resolve();
             return prevChats;
           }
-          
+
           return prevChats.map((c) =>
             c.id === chatId
               ? {
-                  ...c,
-                  messages: c.messages.map((m) =>
-                    m.id === assistantMsgId
-                      ? { ...m, content: text.slice(0, i) }
-                      : m
-                  ),
-                }
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === assistantMsgId
+                    ? { ...m, content: text.slice(0, i) }
+                    : m
+                ),
+              }
               : c
           );
         });
-        
+
         if (!cancelled && i < text.length) {
           i++;
           timeoutId = setTimeout(tick, SERVER_WAITTIME);
@@ -269,7 +275,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           resolve();
         }
       };
-      
+
       tick();
     });
 
@@ -290,7 +296,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               activeQuery: null,
               messages: chat.messages.map(m =>
                 m.id === lastMessage.id
-                  ? { ...m, content: messageContent, include: false}
+                  ? { ...m, content: messageContent, include: false }
                   : m
               ),
             };
@@ -305,27 +311,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     async (chatId: string, userContent: string, retryCount = 0) => {
       const trimmed = userContent.trim();
       if (!trimmed) return;
-      
+
       // Check server health before sending
       if (healthStatus.status === 'unhealthy') {
         console.warn('Cannot send message: Server is unavailable');
         throw new Error(`Server is unavailable: ${healthStatus.message}`);
       }
-      
+
       // Check if this chat is already processing a message
       if (processingChats.has(chatId)) {
         console.warn('Message already being processed for this chat');
         throw new Error('Another message is already being processed for this chat');
       }
-      
+
       // Mark chat as processing
       setProcessingChats(prev => new Set(prev.add(chatId)));
-      
+
       const userId = generateId();
       const assistantId = `chatcmpl-${generateId()}`;
 
-      // Find the chat and get its model
-      const currentChat = chats.find(c => c.id === chatId);
+      // Find the chat and get its model - use fresh state to avoid stale closure
+      let currentChat: Chat | undefined;
+      setChats(prevChats => {
+        currentChat = prevChats.find(c => c.id === chatId);
+        return prevChats; // No change, just reading fresh state
+      });
+
       if (!currentChat) {
         setProcessingChats(prev => {
           const next = new Set(prev);
@@ -336,41 +347,41 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
 
       const modelForThisMessage = currentChat.model;
-      
+
       // Add user message and empty assistant message to UI
-      const userMsg: Message = { 
-        id: userId, 
-        role: "user", 
-        content: trimmed, 
-        model: modelForThisMessage, 
+      const userMsg: Message = {
+        id: userId,
+        role: "user",
+        content: trimmed,
+        model: modelForThisMessage,
         include: true
       };
-      const assistantMsg: Message = { 
-        id: assistantId, 
-        role: "assistant", 
-        content: "", 
-        model: modelForThisMessage, 
+      const assistantMsg: Message = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        model: modelForThisMessage,
         include: true
       };
-      
-      const initialQuery: ActiveQuery = { 
-        id: assistantId, 
-        status: "QUEUED", 
-        startTime: Date.now(), 
-        model: modelForThisMessage, 
-        queuePosition: null, 
+
+      const initialQuery: ActiveQuery = {
+        id: assistantId,
+        status: "QUEUED",
+        startTime: Date.now(),
+        model: modelForThisMessage,
+        queuePosition: null,
       };
 
       setChats(prevChats =>
-        prevChats.map(c => 
-          c.id === chatId 
+        prevChats.map(c =>
+          c.id === chatId
             ? {
-                ...c,
-                messages: [...c.messages, userMsg, assistantMsg],
-                isActive: true,
-                models: [...new Set([...(c.models || []), modelForThisMessage])],
-                activeQuery: initialQuery,
-              }
+              ...c,
+              messages: [...c.messages, userMsg, assistantMsg],
+              isActive: true,
+              models: [...new Set([...(c.models || []), modelForThisMessage])],
+              activeQuery: initialQuery,
+            }
             : c
         )
       );
@@ -381,8 +392,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }, REQUEST_TIMEOUT);
 
       try {
-        // Get current chat messages for context
-        const updatedChat = chats.find(c => c.id === chatId);
+        // Get current chat messages for context - use fresh state
+        let updatedChat: Chat | undefined;
+        setChats(prevChats => {
+          updatedChat = prevChats.find(c => c.id === chatId);
+          return prevChats; // No change, just reading fresh state
+        });
+
         if (!updatedChat) {
           throw new Error("Chat not found after being set.");
         }
@@ -400,13 +416,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
         let wasCancelled = false;
         setChats(prevChats => {
-            const upToDateChat = prevChats.find(c => c.id === chatId);
-            if (!upToDateChat?.isActive) {
-                wasCancelled = true;
-                console.log("Query was cancelled or timed out before response arrived. Ignoring response.");
-                return prevChats; 
-            }
+          const upToDateChat = prevChats.find(c => c.id === chatId);
+          if (!upToDateChat?.isActive) {
+            wasCancelled = true;
+            console.log("Query was cancelled or timed out before response arrived. Ignoring response.");
             return prevChats;
+          }
+          return prevChats;
         });
 
         if (wasCancelled) return;
@@ -415,13 +431,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       } catch (e: unknown) {
         clearTimeout(timeoutId);
-        
+
         let errorMessage = "⚠️ Error processing request. Please try again.";
-        
+
         if (e instanceof Error && 'type' in e) {
           const networkError = e as NetworkError;
           console.error("Failed to get chat completion:", networkError.userMessage);
-          
+
           switch (networkError.type) {
             case 'CONNECTION_FAILED':
               // Retry connection failures up to 2 times with exponential backoff
@@ -433,7 +449,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 }, delay);
                 return; // Don't show error yet, we're retrying
               }
-              
+
               errorMessage = "⚠️ Cannot connect to server. Check your internet connection and try again.";
               if (!connectionErrorToastId) {
                 const toastId = showConnectionError(
@@ -459,7 +475,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         } else {
           console.error("Failed to get chat completion:", e);
         }
-        
+
         setChats((prevChats) =>
           prevChats.map((c) => {
             if (c.id === chatId) {
@@ -467,7 +483,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 ...c,
                 messages: c.messages.map((m) =>
                   m.id === assistantId
-                    ? { ...m, content: errorMessage, include: false}
+                    ? { ...m, content: errorMessage, include: false }
                     : m
                 ),
                 isActive: false,
@@ -484,18 +500,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           next.delete(chatId);
           return next;
         });
-        
+
         setChats(prevChats =>
           prevChats.map(c =>
-            c.id === chatId && c.isActive 
+            c.id === chatId && c.isActive
               ? { ...c, isActive: false, activeQuery: null }
               : c
           )
         );
       }
     },
-    [cancelQuery, healthStatus, processingChats, connectionErrorToastId, showConnectionError, showError] 
-  );  
+    [cancelQuery, healthStatus, processingChats, connectionErrorToastId, showConnectionError, showError]
+  );
 
   const renameChat = (id: string, newTitle: string) => {
     setChats((prevChats) =>
@@ -534,12 +550,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     getModels: async () => {
       const raw = await getModels();
       if (raw.length > 0) {
-        setModels(
-          raw.map((m) => ({
-            id: m.id,
-            name: m.id.split("/").pop() || m.id,
-          }))
-        );
+        // Extract base model names and deduplicate
+        const modelMap = new Map();
+        raw.forEach((m) => {
+          const baseName = m.id.includes(":") ? m.id.split(":")[0] : m.id;
+          if (!modelMap.has(baseName)) {
+            modelMap.set(baseName, {
+              id: m.id, // Keep original ID for API calls
+              name: baseName,
+            });
+          }
+        });
+        setModels(Array.from(modelMap.values()));
       }
       // If empty array returned, keep existing models (server likely offline)
     },
@@ -561,7 +583,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setChats((xs) => [...xs, chat]);
       setCurrentChat(chat.id);
     },
-    deleteChat, 
+    deleteChat,
     renameChat,
   };
 

@@ -6,14 +6,14 @@ import { WorkerInfoPopup } from './WorkerInfoPopup';
 
 // Green for idle GPU worker, Red for others
 const getWorkerStatusColor = (worker: Worker) => {
-  const hasGpu = Object.keys(worker.hardware_info.GPUs_info).length > 0;
-  const isIdle = worker.io_queue.length === 0;
+  const hasGpu = worker.hardware_info.gpu_info && Object.keys(worker.hardware_info.gpu_info).length > 0;
+  const isIdle = Object.keys(worker.instances_on_device).length === 0;
   return hasGpu && isIdle ? 'bg-green-300' : 'bg-red-300';
 };
 
 const getWorkerDotColor = (worker: Worker) => {
-  const hasGpu = Object.keys(worker.hardware_info.GPUs_info).length > 0;
-  const isIdle = worker.io_queue.length === 0;
+  const hasGpu = worker.hardware_info.gpu_info && Object.keys(worker.hardware_info.gpu_info).length > 0;
+  const isIdle = Object.keys(worker.instances_on_device).length === 0;
   return hasGpu && isIdle ? 'bg-green-600' : 'bg-red-600';
 };
 
@@ -141,7 +141,7 @@ export const WorkerPanel: React.FC = () => {
               onMouseLeave={handleMouseLeave}
               onClick={(e) => handleClick(worker, e)}
             >
-              SLLM_WORKER_{worker.node_id}
+              {worker.node_id}
             </div>
           ))}
         </div>
