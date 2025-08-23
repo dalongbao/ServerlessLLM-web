@@ -1,8 +1,8 @@
 "use client";
 import { useChat } from "@/context/ChatProvider";
+import { getDisplayModelName } from "@/context/helpers";
 import MessageBubble from "./MessageBubble";
 import MessageContent from "./MessageContent";
-import NewChatPage from "./NewChatPage";
 import React from "react";
 import { useLayoutEffect } from "react";
 import { Send, Square } from "lucide-react";
@@ -32,22 +32,33 @@ export default function ChatWindow() {
     if (chat) {
       endRef.current?.scrollIntoView({ behavior: "auto" });
     }
-  }, [chat, chat?.id, chat?.messages.length]); 
+  }, [chat, chat?.id, chat?.messages.length]);
 
-  if (!chat) return <NewChatPage />;
+  if (!chat) return (
+    <div className="flex flex-1 items-center justify-center bg-white text-gray-500">
+      Select a chat or create a new one to get started
+    </div>
+  );
 
   const send = async () => {
     if (waiting || !isModelSelected || isServerUnhealthy) return;
+    if (!chat || !currentChatId) {
+      console.warn('No chat selected or chat not ready');
+      return;
+    }
     const trimmed = draft.trim();
     if (!trimmed) return;
+    
+    // Clear the input immediately when sending
+    setDraft("");
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    });
+    
     try {
-      await sendMessage(chat.id, trimmed);
-      setDraft("");
-      requestAnimationFrame(() => {
-        if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
-        }
-      });
+      await sendMessage(currentChatId, trimmed);
     } catch (error) {
       console.error('Failed to send message:', error);
       // You could show a toast notification here
@@ -88,7 +99,7 @@ export default function ChatWindow() {
           m.role === "assistant" ? (
             <div key={m.id} className="w-full whitespace-pre-wrap">
               <div className="mb-1 font-bold text-gray-600">
-                {m.model?.split("/").pop() || m.model}
+                {m.model ? getDisplayModelName(m.model) : ""}
               </div>
               {m.content ? (
                 <MessageContent content={m.content} />
@@ -100,7 +111,7 @@ export default function ChatWindow() {
                 </div>
               )}
             </div>
-          ) : (                
+          ) : (
             <div key={m.id} className="flex w-full justify-end">
               <div className="max-w-[70%]">
                 <MessageBubble role="user">{m.content}</MessageBubble>
@@ -126,27 +137,25 @@ export default function ChatWindow() {
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              waiting ? "Waiting for response..." : 
-              isServerUnhealthy ? "Server unavailable - cannot send messages" : 
-              "Ask anything"
+              isServerUnhealthy ? "Server unavailable - cannot send messages" :
+                  "Ask anything"
             }
             rows={1}
-            disabled={waiting || isServerUnhealthy}
+            disabled={isServerUnhealthy}
           />
           <button
             type="button"
             onClick={waiting ? handleStop : send}
-            className={`flex items-center justify-center rounded-lg px-3 py-2 text-white transition-colors ${
-              waiting
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-40'
-            }`}
-            disabled={!waiting && (!draft.trim() || isServerUnhealthy)}
+            className={`flex items-center justify-center rounded-lg px-3 py-2 text-white transition-colors ${waiting
+              ? 'bg-red-600 hover:bg-red-700'
+              : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-40'
+              }`}
+            disabled={!waiting && (!draft.trim() || isServerUnhealthy || !isModelSelected)}
           >
             {waiting ? (
-              <Square className="h-5 w-5" aria-label="Stop generating"/>
+              <Square className="h-5 w-5" aria-label="Stop generating" />
             ) : (
-              <Send className="h-5 w-5" aria-label="Send message"/>
+              <Send className="h-5 w-5" aria-label="Send message" />
             )}
           </button>
         </form>
